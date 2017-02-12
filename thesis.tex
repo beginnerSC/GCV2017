@@ -1,0 +1,3710 @@
+\documentclass[12pt]{article}
+
+
+%\title{Improving Pricing Accuracy of Various Numerical Methods with the Control Variate Technique}
+\title{Extension of the Control Variate Technique to Option Pricing Methods Beyond Monte Carlo Simulation}
+\date{}%\today}
+
+%replace Levy by L\'evy
+
+
+\usepackage[latin1]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+% \usepackage{latexsym}
+% \usepackage{algorithm}
+% \usepackage{algorithmic}
+\usepackage{epsfig}
+\usepackage{color}
+% \usepackage{rotating}
+\usepackage{natbib}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{multicol}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage{framed}
+
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\newenvironment{proof}[1][Proof]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{definition}[1][Definition]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{example}[1][Example]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+\newcommand{\qed}{\nobreak \ifvmode \relax \else
+      \ifdim\lastskip<1.5em \hskip-\lastskip
+      \hskip1.5em plus0em minus0.5em \fi \nobreak
+      \vrule height0.75em width0.5em depth0.25em\fi}
+
+
+
+
+\author{Student: Chun-Yuan Chiu\qquad Advisor: Dr. Tian-Shyr Dai}
+
+
+
+\begin{document}
+\maketitle
+
+{\large
+\begin{center}
+Institute of Information Management\\
+%College of Management\\
+National Chiao Tung University\\
+\end{center}
+}
+
+$$$$
+
+\begin{abstract}
+Although mostly used in connection with the Monte Carlo simulation,
+the control-variate technique has applications in a surprisingly large class of numerical algorithms in option pricing.
+This paper studies the condition under which a numerical method can benefit from the control variate technique
+and the kind of approximation that can serve as a control variate.
+We demonstrate the ideas to Fourier transform-based pricing algorithms, convolution-based pricing algorithms, and binomial trees.
+Numerical results are provided to show the efficiency and accuracy of the control variate-enhanced algorithms.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+\doublespacing
+
+
+\section{Introduction}
+
+
+The problem of option pricing is an important subject in the field of financial engineering,
+not only because some options have very large daily trading volume,
+but also because many important quantities (e.g., the probability of default of a company or the value of many popular financial derivatives) reduce to option pricing problems.
+Under the most popular and analytically tractable Black-Scholes model,
+for some European options such as binary, call and put options, and some path-dependent options like barrier options, there are closed-form pricing formulas.
+For others like American options and Asian options, however, there are not.
+There are also option pricing models under more realistic assumptions, such as the stochastic-volatility model developed by \citet{heston1993closed},
+and models based on L\'evy-type jump process by \citet{merton1976option}, \citet{kou2002jump}, \citet{carr2002fine}.
+Many of these models do not have excellent analytical tractability like the Black-Scholes model;
+Even the simplest call option does not have a closed-form pricing formula.
+When deriving a closed-form formula is not possible, financial mathematicians usually work toward two directions
+-- deriving analytical approximation formulas, or applying numerical pricing algorithms.
+
+
+
+Analytical approximations and numerical methods both have their own advantages and disadvantages.
+Applying an analytical approximation, all the computations is done efficiently, but typically the result is not very accurate.
+Numerical pricing algorithms can be time-consuming but one can always get more accuracy given more computational time or resources.
+
+
+
+The control-variate (CV) technique is standard in reducing the variance of the results of Monte Carlo simulation.
+By combining simulation with an analytical formula,
+CV is often able to reduce the variance and hence raise the efficiency of the original algorithm.
+A good example by \citet{kemna1990pricing} is arithmetic Asian options pricing with Monte Carlo simulation with the geometric Asian option as the control variate.
+By combining simulation for the arithmetic Asian option
+(which does not have a closed-form solution) and the closed-form formula for the geometric Asian option,
+the CV technique lowers the variance dramatically.
+
+
+
+
+Although mostly used in connection with Monte Carlo simulation, the CV technique can in fact be used to enhance almost any numerical method.
+This paper presents a general framework of the CV technique.
+It lays out the conditions a CV and the numerical method should satisfy for the CV technique to work.
+As illustrations, we demonstrate how to apply this general version of the CV technique to Fourier transform (FT) and convolution-based pricing algorithms, and binomial trees.
+
+
+
+FT-based pricing algorithms and convolution-based algorithms are widely used in the literature (e.g., \citet{benhamou2002fast}, \citet{carr1999option}, \citet{lord2008fast}, \citet{schmelzle2010option}).
+An FT-based pricing algorithm can deal with European options pricing under any model with a closed-form characteristic function,
+which includes some stochastic-volatility models and all exponential L\'evy models (see \citet{tankov2003financial}).
+Convolution-based pricing algorithms can be used to evaluate many path dependent options.
+Our methodology is able to enhance all those pricing algorithms in terms of accuracy and efficiency.
+
+
+
+
+The CV technique is applied to binomial trees by \citet{hull1988use}.
+\citet{tankov2003financial} also derives an FT-based pricing algorithm that implicitly uses a control variate,
+which is mentioned in a survey by \citet{schmelzle2010option}.
+Apart from the works, the CV technique has always been combined with Monte Carlo.
+This paper will substantially broaden the applicability of the CV technique far beyond Monte Carlo.
+We will apply it to FT and convolution-based pricing algorithms.
+We also discuss choices of CV.
+In the literature, the CV technique is applied to the algorithm as a whole.
+This is true even for binomial trees in \citet{hull1988use}.
+In the case of convolution-based algorithms and binomial trees, the CV technique will be applied to steps within the algorithm.
+In fact, different CVs are picked in different steps.
+Even if an algorithm as a whole does not satisfy the conditions under which it can benefit from the use of CVs, some of its individual parts may.
+
+
+
+
+This paper is organized as follows.
+Section 2 explains the idea of the CV technique and the conditions under which it can be used.
+Section 3 discusses how to apply the CV technique to FT-based pricing algorithms, as well as a methodology to find a CV.
+Section 4 uses the convolution-based pricing algorithms to illustrate how to apply the CV technique within them.
+Section 5 demonstrates how to apply the CV technique to binomial trees.
+Numerical results are given in the end of each section to show the improvements over original algorithms.
+Section 6 concludes.
+
+
+
+
+
+\section{Preliminary}
+The purpose of this thesis is to propose efficient and accurate numerical algorithms for financial derivatives pricing.
+A financial derivative is a financial contract whose value is derived by one or several underlying securities.
+Its fair value, or the no-arbitrage price, can be derived as an expectation under the risk neutral probability measure according to the martingale pricing theory.
+Since the entire thesis is based on this theory,
+in this section we review it and other basic elements in derivatives pricing.
+
+
+
+\subsection{Martingale Pricing Theory}
+\label{sec:martingale}
+
+The goal here is to sketch the derivation of the fair value of a financial derivative under certain assumptions.
+We start from a simplified version of the martingale pricing theory.
+A more general and detailed discussion can be found in Chapter 5 in \citet{shreve2004stochastic}.
+
+
+
+Consider a derivative with maturity $T$ and payoff $X$.
+Denote by $S_t$ the underlying security price at time $t$.
+An example is a call option written on a stock that gives its holder the right, but not the obligation, to buy the stock at a predetermined strike price at time $T$.
+Assuming that the strike price is $K$, and that the underlying stock price at time $t$ is $S_t$, then we have the payoff $X = \max(S_T - K, 0)$.
+The operation $\max(\cdot, 0)$ is so common in the field of financial engineering that we give it a somewhat more simplified notation $(\cdot)^+$ and write the payoff as $X = (S_T - K)^+$.
+As illustrated in this example, at time zero the payoff $X$ can be a random variable.
+In fact, in most cases it is a random variable.
+
+
+
+To obtain the fair value of the derivative, first we construct a portfolio with money market account and the underlying asset.
+We change the portfolio constantly according to certain strategy so that the value of this portfolio at time $T$ is equal to the payoff $X$ of the derivative in all scenarios.
+In addition, once this portfolio is set up, no money can be put into or pull out of the portfolio.
+When an agent changes the portfolio, he or she can only sell some asset from the portfolio to buy another.
+A strategy with all these properties is called a self-financing strategy that replicates $X$.
+
+
+
+To find such a strategy, it is convenient to have more assumptions, including the dynamics of the underlying asset $S_t$.
+The following assumptions are the starting point of the celebrated Black-Scholes model.
+Assume a constant risk free interest rate $r$.
+For constant $\mu$ and $\sigma>0$, assume that the underlying asset price process follows the stochastic differential equation (SDE)
+\begin{eqnarray*}
+dS_t = \mu S_t dt + \sigma S_t dW_t,
+\end{eqnarray*}
+where $W_t$ is a Brownian motion in the real world (filtered) probability space $(\Omega, \mathcal F, (\mathcal F_t), P)$.
+The solution of this SDE is known as the geometric Brownian motion because it can be shown that $S_t = S_0 \exp((\mu-\sigma^2/2)t + \sigma W_t)$,
+which is a Brownian with drift taking exponential.
+The constant $\mu$ and $\sigma$ are used to model the mean rate of return and the volatility of the underlying asset, respectively.
+Denote $B_t =  e^{rt}$ the value of one unit of money market account, and denote by $Z_t$ the discounted underlying asset $B_t^{-1} S_t$.
+By the Ito lemma, we can evaluate the differential of $Z_t$ as
+\begin{eqnarray*}
+d(B_t^{-1} S_t) &=& -r B_t^{-1} S_t dt + B_t^{-1} dS_t - r B_t^{-1} dt d S_t \\
+&=& -r B_t^{-1}S_t dt + B_t^{-1}(\mu S_t dt + \sigma S_t dW_t)\\
+%&=& B_t^{-1}S_t((\mu - r) dt + \sigma dW_t)\\
+&=& \sigma B_t^{-1}S_t\left(\left(\frac{\mu - r}{\sigma}\right) dt + dW_t\right)\\
+&=& \sigma Z_t\left(\xi dt + dW_t\right),
+\end{eqnarray*}
+where we denote the ratio $(\mu - r)/\sigma$ by $\xi$.
+It is called the market price of risk because it is the excess return per unit of volatility.
+Let $Y_t = \exp({-\frac{\xi^2}{2} t + \xi W_t})$.
+It can be shown that $E[Y_T] = 1$ and hence we can define a new probability measure
+$$
+\tilde P(E) = \int_E Y_T\,dP,
+$$
+under which, by the Girsanov theorem, the stochastic process $\tilde W_t = \xi t + W_t$ is a Brownian motion.
+This new measure $\tilde P$ is called the risk neutral probability measure.
+
+
+
+We can write $dZ_t = \sigma Z_t d\tilde W_t$ and it becomes clear that $Z_t$ is a martingale under $\tilde P$ since it is an Ito integral.
+We further define $E_t = \tilde E[B_T^{-1}X|\mathcal F_t]$, where $\tilde E$ stands for the expectation under $\tilde P$.
+$E_t$ is also a martingale because for $0<s<t$ we have
+$\tilde E[E_t | \mathcal F_s] = \tilde E[\tilde E[B_T^{-1}X|\mathcal F_t] | \mathcal F_s] = \tilde E[B_T^{-1}X|\mathcal F_s] = E_s$.
+This is a direct consequence of the tower property.
+
+
+
+Now we have two martingales $Z_t$ and $E_t$.
+By the martingale representation theorem, there exists an adapted process $\phi_t$ such that $dE_t = \phi_tdZ_t$.
+Define $\psi_t = E_t - \phi_t Z_t$.
+Then $V_t = \phi_t S_t + \psi_t B_t$ is the self-financing strategy that replicates $X$.
+Before we explain why it is self-financing and why it replicates $X$, let us take a look at the strategy.
+The portfolio consists of $\phi_t$ shares of the underlying asset and $\psi_t$ units of money market account.
+Since $S_t$ and $B_t$ are the value of the underlying asset and the money market account, respectively,
+the time $t$ value of the portfolio is $V_t = \phi_t S_t + \psi_t B_t$.
+The value of $\phi_t$ moves as $S_t$, and $\psi_t$ is determined by $\phi_t$,
+so we change the portfolio according to the change of the value of the underlying asset.
+
+
+
+To see that $V_t$ is a self-financing strategy that replicates $X$, we first need the identity $V_t = B_t E_t$, which is derived as follows
+\begin{eqnarray*}
+V_t &=& \phi_t S_t + \psi_t B_t\\
+&=& \phi_t S_t + (E_t - \phi_t Z_t)B_t\\
+&=& \phi_t S_t + B_t E_t - \phi_t B_t Z_t = B_t E_t.
+\end{eqnarray*}
+The last equality holds because $B_t Z_t = S_t$.
+To say that $V_t$ replicates $X$, we need to prove $V_T = X$, which is obvious given the above identity.
+Indeed,
+\begin{eqnarray*}
+V_T &=& B_T E_T \\
+&=& B_T E_{\mathbb Q}[B_T^{-1}X|\mathcal F_T]\\
+&=& B_T B_T^{-1}X = X.
+\end{eqnarray*}
+To verify that this strategy is self-financing, we first introduce the mathematical definition:
+$V_t$ is self-financing if and only if
+$$
+dV_t = \phi_t dS_t + \psi_t dB_t.
+$$
+Intuitively, this identity says that all the change of the value of $V_t$ is from the change of $S_t$ and $B_t$, but not $\phi_t$ and $\psi_t$.
+In other words, although we can change our portfolio anytime, it has to be selling one asset to buy another.
+No change of $\phi_t$ or $\psi_t$ can effect the value of $V_t$.
+Initially we set up the portfolio: $\phi_0$ shares of $S$ and $\psi_0$ shares of $B$.
+Once it is done, no money can be put in or pulled out.
+Now we are ready to verify that $V_t$ is indeed self-financing.
+Note that
+\begin{eqnarray*}
+dV_t &=& B_t dE_t + E_t dB_t\\
+&=& B_t \phi_t dZ_t + (\psi_t + \phi_t Z_t)dB_t\\
+&=& \psi_t dB_t + \phi_t (  B_t dZ_t + Z_t dB_t )
+\end{eqnarray*}
+Since $B_t dZ_t + Z_t dB_t = d(B_tZ_t)$, the right hand side is equal to $\psi_t dB_t + \phi_t dS_t$ and the definition of self-financing is thus satisfied.
+
+
+
+Having $V_t$ constructed means that
+we have a way to obtain the same payoff $X$ as the derivative at maturity $T$ just by buying and selling the underlying asset and the money market account.
+No need to actually buy the derivative itself.
+Since $V_t$ is self-financing, by the no-arbitrage principle, at all time it must have the same value as the derivative.
+Thus we conclude that the fair value, or the no-arbitrage price, of this derivative is
+\begin{eqnarray*}
+V_t &=& B_t E_t\\
+&=& B_t \tilde E[B_T^{-1}X|\mathcal F_t]\\
+&=& e^{-r(T-t)}\tilde E[X|\mathcal F_t].
+\end{eqnarray*}
+In particular, at $t=0$ we have
+\begin{eqnarray}
+V_0 = e^{-rT} \tilde E[X],\label{eq:universal_pricing_formula}
+\end{eqnarray}
+meaning the fair initial value of a derivative is the discounted expected value under the risk neutral probability.
+
+
+
+The pricing formula $(\ref{eq:universal_pricing_formula})$ is quite general.
+Since we do not specify what $X$ is, it can be the payoff of any derivatives, even path-dependent ones.
+Path-dependent derivatives are derivatives whose payoff is determined not only by the value of the underlying asset at maturity,
+but also the trajectory of the underlying asset value throughout the life of the derivative.
+Examples include Asian options and barrier options, which will be discussed in later sections.
+
+
+
+
+The formula $(\ref{eq:universal_pricing_formula})$ is still valid even if the Black-Scholes assumptions are changed.
+One only needs to modify the above argument accordingly.
+A well-known example is the stochastic volatility model proposed by \citet{heston1993closed},
+in which to find the risk neutral probability measure we need the two dimensional Girsanov theorem.
+There are also exponential Levy models such as the ones proposed in \citet{merton1976option} and \citet{kou2002jump}
+where both the Girsanov theorem and the martingale representation theorem needs to be extended to handle the jump processes,
+but in the end, the pricing formula (\ref{eq:universal_pricing_formula}) can also be obtained.
+An excellent introduction of derivative pricing models built with jump processes can be found in \citet{tankov2003financial}.
+
+
+
+\section{General Control Variate Method}
+
+
+
+
+
+The control variate technique is an effective variance reduction technique in the Monte Carlo method
+which can actually be extended to many other numerical pricing methods.
+To better explain the general version, we first review the old version in the Monte Carlo method.
+Denote by $\mathsf E[Y]$ the expectation of a random variable $Y$,
+and $\mathbb E[Y]$ the Monte Carlo estimator $\sum_{i=1}^nY(\omega_i)/n$, where $\omega_i$ are random samples.
+The plain Monte Carlo method uses $\mathbb E[Y]$ as an estimate of $\mathsf E[Y]$.
+The error of this estimate depends on the variance of $\mathbb E[Y]$.
+The smaller the variance is, the more likely the estimate is accurate.
+
+
+
+The control variate technique is based on the decomposition $\mathsf E[Y] = \mathsf E[Y-C] + \mathsf E[C]$.
+The idea is that if one can find a random variable $C$ such that $\mathsf E[C]$ is known analytically
+and the variance of $Y-C$ is smaller than the the variance of $Y$,
+then one can use the estimate
+\begin{eqnarray*}
+\mathsf E[Y] &\approx& \mathbb E[Y-C] + \mathsf E[C] \\
+            &=& \left(\sum_{i=1}^n(Y(\omega_i) - C(\omega_i))/n\right) + \mathsf E[C],
+\end{eqnarray*}
+which has a smaller variance compared to $\mathbb E[Y]$ and hence is a better estimate.
+The random variable $C$ is called the control variate, or control for short, and $Y-C$ is called the difference.
+In other words, in the control variate technique $Y$ is written as the sum of the difference and the control and,
+since $\mathsf E[C]$ is known, the Monte Carlo estimator is only applied to the difference.
+
+
+
+To extend the above idea to other numerical methods, we move to a general setting.
+Suppose we are to evaluate $\mathsf T(f)$, a linear operator $\mathsf T$ acting on the function $f$, and we have a numerical approximation $\mathbb T(f)$.
+An example is that $\mathsf T$ is the integral operator $\int_a^b$, so $\mathsf T(f) = \int_a^b f\,dx$, while $\mathbb T$ is the trapezoidal rule approximation of $T$.
+An analogous idea to the control variate technique is to find a function $g$, the control, such that $\mathsf T(g)$ is known analytically,
+and the error of $\mathbb T(f-g)$ is smaller than the error of $\mathbb T(f)$.
+Then
+\begin{eqnarray}
+\mathsf T(f) \approx \mathbb T(f-g) + \mathsf T(g)\label{eq:GCVapprox}
+\end{eqnarray}
+would be a better approximation than $\mathbb T(f)$.
+This statement is quite general.
+The only assumption is the linearity of $\mathsf T$.
+See Figure \ref{fig:CV_GCV_comp} for a comparison of these two versions of control variate technique.
+
+
+
+\begin{figure}[t!]
+\rule{\textwidth}{0.4pt}\\
+{\scriptsize
+\parbox[t]{0.43\textwidth}{
+Control Variate Method in Monte Carlo
+\begin{itemize}
+    \item Want to evaluate $\mathsf E[Y]$
+        \begin{itemize}
+            \item[]
+        \end{itemize}
+    \item Monte Carlo estimator
+        \begin{eqnarray*}
+        \textstyle \mathsf E[Y] \approx \mathbb E[Y] = \sum_{i=1}^n Y(\omega_i)/n
+        \end{eqnarray*}
+    \item Control variate method
+        \begin{eqnarray*}
+        \mathsf E[Y] = \mathsf E[Y-C] + \mathsf E[C]
+        \end{eqnarray*}
+    \begin{itemize}
+        \item $C$ is the control variate
+        \item $Y-C$ is the difference
+    \end{itemize}
+    \item Find a $C$ such that
+    \begin{itemize}
+        \item $\text{Var}(Y-C) < \text{Var}(Y)$
+        \item $\mathsf E[C]$ is known analytically
+    \end{itemize}
+    \item Apply the estimator on $Y-C$ instead of $Y$
+\end{itemize}
+}
+\parbox[t]{0.57\textwidth}{
+General Control Variate Method
+\begin{itemize}
+    \item Want to evaluate $\mathsf T(f)$
+    \begin{itemize}
+        \item linear operator $\mathsf T$ on any function $f$
+    \end{itemize}
+    \item Approximating operator
+        \begin{eqnarray*}
+        \mathsf T(f) \approx \mathbb T(f)
+        \end{eqnarray*}
+    \item General control variate method
+        \begin{eqnarray*}
+        \mathsf T(f) = \mathsf T(f-g) + \mathsf T(g)
+        \end{eqnarray*}
+    \begin{itemize}
+        \item $g$ is the control variate
+        \item $f-g$ is the difference
+    \end{itemize}
+    \item Find a $g$ such that
+    \begin{itemize}
+        \item error of $\mathbb T(f)$ $<$ error of $\mathbb T(f-g)$
+        \item $\mathsf T(g)$ is known analytically
+    \end{itemize}
+    \item Apply the approximating operator $\mathbb T$ on $f-g$ instead of $f$
+\end{itemize}
+}}
+\rule{\textwidth}{0.4pt}
+\caption{Control Variate Method in Monte Carlo and the General Version}\label{fig:CV_GCV_comp}
+\end{figure}
+
+
+
+
+
+
+
+
+\subsection{An Example}
+\label{sec:GCV_ncdf}
+Before going to option pricing, let us use a simple example to demonstrate how the control variate method works with numerical integration.
+Suppose we want to apply the trapezoidal rule to evaluate the cumulative normal distribution function $N(x) = \int_{-\infty}^x n(t)\,dt = 1/2 + \int_{0}^x n(t)\,dt, $
+where $n(t) = \exp(-t^2/2)/\sqrt{2\pi}$ is the standard normal density function.
+A common approximation for $N(x)$ is
+$$
+N(x)\approx 1-n(x)\left(a_1 p + a_2 p^2 + a_3 p^3 + a_4 p^4 + a_5 p^5\right) \qquad \forall x\geq 0,
+$$
+where $p = 1/(1+a_0 x)$ and all $a_i$'s are given constants.\footnote{
+$a_0=0.2316419$, $a_1=0.319381530$, $a_2=-0.356563782$, $a_3=1.781477937$, $a_4=-1.821255978$, $a_5=1.330274429.$
+This approximation is from \citet{abramowitz1972handbook}.
+}
+This function, denoted by $F(x)$ hereafter, can lead us to a good control variate.
+
+
+Since $F(x)$ behaves like $N(x)$, $dF(x)/dx$ should be similar to $n(x)$.
+We define $n_{\text{CV}}(x) = dF(x)/dx$ and use it as the control variate. Denote by $n_{\text{Diff}}$ the difference $n-n_{\text{CV}}$ and rewrite
+%{\color{red} eq:CVdecomp\_n}
+\begin{eqnarray}
+\int_{0}^x n\,dt &=& \int_{0}^x n-n_{\text{CV}}\,dt + \int_{0}^x n_{\text{CV}}\,dt\nonumber\\
+&=& \int_{0}^x n_{\text{Diff}}\,dt + \int_{0}^x n_{\text{CV}}\,dt.\label{eq:CVdecomp_n}
+\end{eqnarray}
+Now the second term of the right hand side is known analytically as $F(x)-F(0)$, so we apply the trapezoidal rule only on the first term.
+This way, since $n_{\text{Diff}}$ only takes small values, we will get a better approximation than na\"ively applying numerical integration to evaluate the left hand side.
+The plots of $n(t)$ and $n_{\text{Diff}}(t)$ shown in Figure \ref{fig:n and n_diff} give an explanation why the numerical error is reduced.
+
+
+\begin{figure}[!t]
+\begin{center}
+\parbox[t]{0.45\textwidth}{
+$n(t)$\\\\
+  \centerline{\epsfig{figure=eps/n.eps, height=2in, width=0.5\textwidth}}
+}\hfill\quad
+\parbox[t]{0.45\textwidth}{
+$n_{\text{Diff}}(t)$\\\\
+  \centerline{\epsfig{figure=eps/n_diff.eps, height=2in, width=0.5\textwidth}}
+}
+\end{center}
+\caption{
+Plots of $n(t)$ and $n_{\text{Diff}}(t)$.
+Through Eq.\ (\ref{eq:CVdecomp_n}), we can apply numerical integration on $n_{\text{Diff}}(x)$ instead of $n(t)$.
+Since $n_{\text{Diff}}(t)$ takes small values, the error induced by numerical integration is small.
+}
+\label{fig:n and n_diff}
+\end{figure}
+
+
+
+\section{Fourier Transform Based Pricing Algorithms}
+% Option pricing algorithms based on the Fourier transform are widely used in financial engineering.
+% An important reason is that many option pricing models do not have a closed form cumulative distribution function,
+% but their characteristic function is known analytically.
+% An FT-based pricing algorithm first derives the Fourier transform of the option price or tail probabilities in terms of the characteristic function,
+% and then evaluates the inverse Fourier transform numerically.
+% The resulting algorithms are just numerical integrations applied to some function that is known analytically, so the control variate method can be easily applied.
+
+
+
+The Black-Scholes model has many unrealistic assumptions such as iid log-return, constant volatility, and continuous paths.
+Over decades more realistic derivatives pricing models have been developed, including the stochastic volatility model proposed by \citet{heston1993closed},
+and models based on discontinuous L\'evy processes such as \citet{merton1976option}, \citet{kou2002jump} and \citet{carr2002fine}.
+In many of these models, a closed form pricing formula is not possible to obtain.
+Only the characteristic function of the log-return is known in closed form.
+Fourier transform (FT) based pricing algorithms are therefore developed to fill the need of efficient derivatives pricing.
+
+
+
+In FT based pricing algorithms, the Fourier transform of the derivative price is first derived.
+Mostly it is in terms of the characteristic function of the log-return of the underlying asset and is known in closed form.
+By the Fourier inversion theorem, taking the inverse Fourier transform would give us the derivative price.
+Since there is no closed form formula for the derivative prices, the inverse Fourier transform is done numerically, which is just a numerical integration.
+As previously discussed, the accuracy of a numerical integration can be improved by the control variate technique.
+
+
+
+The control variate technique applied to FT-based pricing algorithms has been studied by, for example, \citet{tankov2003financial} and \citet{schmelzle2010option},
+but has otherwise not received much attention in the literature.
+Here we give a more general argument, including a comprehensive discussion on how to choose the control variate.
+In this section we derive two FT based pricing algorithms --
+the Black-Scholes style formula used in \citet{heston1993closed}, and the algorithm by \citet{carr1999option}.
+We then show how to modify these algorithms with the control variate technique.
+Extension to other types of FT based pricing algorithm is straightforward.
+
+
+
+
+\subsection{The Black-Scholes Style Formula}
+
+
+The Black-Scholes style pricing formula for vanilla call options is first derived by \citet{heston1993closed}.
+The only assumption needed to derive this formula is that the risk-free interest rate is constant.
+The pricing formula is convenient for any model for the underlying asset where the characteristic function of the log return is known analytically,
+a constraint satisfied by many common option pricing models, including the Heston model, the Black-Scholes model, and all exponential L\'evy models.
+
+
+
+Let $r$ be the constant risk-free interest rate, and $S_t$ the dynamics of the price of the underlying asset of the option to be priced.
+Let $\phi_T(u) = E[e^{iu\log(S_T/S_0)}]$ be the characteristic function of the log-return $\log\left(S_T/S_0\right)$.
+The Black-Scholes style pricing formula for vanilla call option with strike $K$ and maturity $T$ is
+\begin{eqnarray*}
+c = S_0 \Pi_1 - K e^{-rT} \Pi_2,\label{eq:BSstyle}
+\end{eqnarray*}
+where
+\begin{eqnarray*}
+\Pi_1 &=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\phi_T(u-i)}{iu\phi_T(-i)}\right]\,du,\\
+\Pi_2 &=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\phi_T(u)}{iu}\right]\,du,
+\end{eqnarray*}
+Given this formula, evaluating the option price with numerical integration rules is straightforward.
+
+
+
+
+To derive the formula, we start from the universal pricing formula (\ref{eq:universal_pricing_formula}).
+Since the payoff of a vanilla call option is $(S_T-K)^+$, we can write $c = e^{-rT}\tilde E[(S_T - K)^+]$.
+Note that
+\begin{eqnarray*}
+c &=& e^{-rT}\tilde E[(S_T - K)^+]\\
+&=& e^{-rT}\tilde E\left[(S_T - K)1_{\{S_T>K\}}\right]\\
+&=& e^{-rT}\tilde E\left[S_T 1_{\{S_T>K\}}\right] - K e^{-rT} E\left[1_{\{S_T>K\}}\right]\\
+&=& S_0\tilde E\left[e^{-rT}\left(\frac{S_T}{S_0}\right) 1_{\{S_T>K\}}\right] - K e^{-rT} P( S_T>K ).
+\end{eqnarray*}
+In terms of the log-return, we rewrite
+\begin{eqnarray}
+c = S_0\underbrace{\tilde E\left[e^{-rT}\left(\frac{S_T}{S_0}\right) 1_{\left\{\log\frac{S_T}{S_0}>\log\frac{K}{S_0}\right\}}\right]}_{\Pi_1} - K e^{-rT} \underbrace{\tilde P\left( \log\frac{S_T}{S_0}>\log\frac{K}{S_0} \right)}_{\Pi_2}.\label{eq:S0E-KDP}
+\end{eqnarray}
+The majority of the derivation of the pricing formula is the following two lemmas:
+\begin{lemma}
+Let $\phi(u) = \tilde E[e^{iuX}]$ be the characteristic function of a random variable $X$.
+Then
+$$
+\tilde P(X>H) = \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[ \frac{e^{-iuH}\phi(u)}{iu} \right]\,du.
+$$
+\label{lemma:prob}
+\end{lemma}
+\begin{lemma}
+With the same notation as Lemma \ref{lemma:prob}, we have
+$$
+\frac{\tilde E\left[e^X 1_{\{X>H\}}\right]}{\tilde E[e^X]} = \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[ \frac{e^{-iuH}\phi(u-i)}{iu\phi(-i)} \right]\,du.
+$$
+\label{lemma:Delta}
+\end{lemma}
+Once these lemmas are proved, the only step it takes to derive an explicit formula for (\ref{eq:BSstyle})
+is to apply Lemmas \ref{lemma:Delta} and \ref{lemma:prob} to rewrite the first and the second term, respectively.
+
+
+
+
+\begin{proof} of Lemma \ref{lemma:prob}: Plugging in the definition of the characteristic function, the right hand side is
+$$
+\frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[ \frac{e^{-iuH}E[e^{iuX}]}{iu} \right]\,du,
+$$
+where the integrand can be rewritten as
+\begin{eqnarray*}
+\text{Re}\left[ \tilde E\left[\frac{e^{iu(X-H)}}{iu}\right] \right] &=& \tilde E\left[ \text{Re}\left[\frac{e^{iu(X-H)}}{iu}\right] \right]\\
+&=& \tilde E\left[ \text{Re}\left[\frac{\cos (u(X-H)) + i\sin (u(X-H))}{iu}\right] \right]\\
+&=& \tilde E \left[\frac{\sin (u(X-H))}{u} \right].
+\end{eqnarray*}
+Note that the in the expectation we have a even function of $u$.
+Now the right hand side of Lemma \ref{lemma:prob} can be written as
+\begin{eqnarray}
+\frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \tilde E \left[\frac{\sin (u(X-H))}{u} \right]\,du = \tilde E \left[\frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \frac{\sin (u(X-H))}{u} \,du\right], \label{eq:rhsFinalStep}
+\end{eqnarray}
+where Fubini's theorem is used to pass the integral inside the expectation.
+
+
+
+Then we need the identity
+$$
+\int_0^{\infty} \frac{\sin t}{t}\,dt = \frac{\pi}{2},
+$$
+which is derived below.
+Note that
+\begin{eqnarray}
+\int_{-\infty}^0 e^{xt}\,dx = \frac{1}{t}.\label{eq:int_sint/t}
+\end{eqnarray}
+Thus
+\begin{eqnarray}
+\int_0^{\infty} \frac{\sin t}{t}\,dt &=& \int_0^{\infty}\int^0_{-\infty} e^{xt} \sin t\,dxdt\nonumber\\
+&=& \int^0_{-\infty}\int_0^{\infty} e^{xt} \sin t\,dtdx.\label{eq:doubleInt}
+\end{eqnarray}
+The domain of integration is set up in a way that $xt$ is negative, in order to make sure of the convergence of the integral.
+Integration by part yields
+$$
+\int e^{xt} \sin t\,dt = \frac{1}{x} e^{xt} \sin t - \frac{1}{x^2} e^{xt} \cos t - \int \frac{1}{x^2}e^{xt} \sin t\,dt.
+$$
+Due to the fact that $xt<0$, we have
+\begin{eqnarray*}
+\int_0^{\infty} e^{xt} \sin t\,dt &=& \left[\frac{ \frac{1}{x} e^{xt} \sin t - \frac{1}{x^2} e^{xt} \cos t }{1+\frac{1}{x^2}}\right]_{t=0}^{t=\infty} \\
+&=& \left[e^{xt}~\frac{ x \sin t - \cos t }{1 + x^2}\right]_{t=0}^{t=\infty}\\
+&=& \frac{1}{1+x^2}.
+\end{eqnarray*}
+Plug this into (\ref{eq:doubleInt}) to get
+\begin{eqnarray*}
+\int_0^{\infty} \frac{\sin t}{t}\,dt = \int^0_{-\infty} \frac{1}{1+x^2}\,dx = \frac{\pi}{2}.
+\end{eqnarray*}
+
+
+
+
+
+With the identity (\ref{eq:int_sint/t}) established, we can further simplify (\ref{eq:rhsFinalStep}).
+Substituting $t = u(X-H)$ in (\ref{eq:int_sint/t}), we get
+\begin{eqnarray*}
+\int_0^{\infty} \frac{\sin (u(X-H))}{u} \,du =
+\begin{cases}
+\int_0^{\infty} \frac{\sin t}{t}\,dt = \frac{\pi}{2}&\mbox{if }X>H\\
+0&\mbox{if }X=H\\
+\int_0^{-\infty} \frac{\sin t}{t}\,dt = -\frac{\pi}{2} &\mbox{if }X<H
+\end{cases}.
+\end{eqnarray*}
+Plug this into (\ref{eq:rhsFinalStep}) to get $E\left[1_{\left\{X>H\right\}}\right] = P(X>H)$.\hfill\qed
+\end{proof}
+\begin{proof} of Lemma \ref{lemma:Delta}: Plugging in the definition of the characteristic function, the right hand side is
+\begin{eqnarray*}
+&&\frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[ \frac{e^{-iuH}E[e^{i(u-i)X}]}{iuE[e^{X}]} \right]\,du \\
+&=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \frac{1}{E[e^X]}\text{Re}\left[ \frac{e^{-iuH}E[e^{iuX+X}]}{iu} \right]\,du \\
+&=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \frac{1}{E[e^X]}\text{Re}\left[ E\left[\frac{e^{iu(X-H)+X}}{iu}\right] \right]\,du \\
+&=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \frac{1}{E[e^X]}E\left[\text{Re}\left[ \frac{e^{iu(X-H)+X}}{iu}\right] \right]\,du.
+\end{eqnarray*}
+Now we apply Euler's formula $e^{ix} = \cos x + i\sin x$ to get rid of the $\text{Re}(\cdot)$ function, like we did in the proof of Lemma 4.1.
+Thus we can write
+\begin{eqnarray*}
+&&\frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \frac{1}{E[e^X]}E\left[\text{Re}\left[ \frac{e^{iu(X-H)+X}}{iu}\right] \right]\,du\\
+&=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \frac{1}{E[e^X]}E\left[e^X\text{Re}\left[ \frac{\cos(u(X-H)) + i\sin(u(X-H))}{iu}\right] \right]\,du \\
+&=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \frac{1}{E[e^X]}E\left[e^X\frac{\sin(u(X-H))}{u} \right]\,du \\
+&=& \frac{1}{E[e^X]}E\left[ e^X \left(\frac{1}{2} + \frac{1}{\pi}\int_0^{\infty}\frac{\sin(u(X-H))}{u}\,du \right)\right] = \frac{E\left[e^X 1_{\{X>H\}}\right]}{E[e^X]},
+\end{eqnarray*}
+which completes the proof. \hfill\qed
+\end{proof}
+
+
+
+Vanilla options pricing under the Black-Scholes model does not really require the Black-Scholes style formula,
+because we have the closed form Black-Scholes pricing formula
+\begin{eqnarray*}
+c &=& S_0 N(d_1) - K e^{-rT} N(d_2), \\
+d_1 &=& \frac{\log \frac{S_0}{K} + \left(r + \frac{\sigma^2}{2}\right)T }{\sigma\sqrt T}, \\
+d_2 &=& \frac{\log \frac{S_0}{K} + \left(r - \frac{\sigma^2}{2}\right)T }{\sigma\sqrt T} = d_1 - \sigma\sqrt T,
+\end{eqnarray*}
+where $N(\cdot)$ is the cumulative distribution function of the standard normal distribution.
+In fact, the similarity between these two formulas is the reason why the Black-Scholes style formula got its name in the first place.
+Below we derive the Black-Scholes formula from the Black-Scholes style formula.
+
+
+
+
+In the Black-Scholes model, the log return of the underlying asset under the risk-neutral probability measure is assumed to follow a Brownian motion with drift:
+$$
+\log\frac{S_T}{S_0} = \left(r-\frac{\sigma^2}{2}\right)T + \sigma W_T \sim N\left(\left(r-\frac{\sigma^2}{2}\right)T, \sigma^2 T\right).
+$$
+Thus its characteristic function is known in closed form as
+$$
+\phi_T(u) = e^{i \left(r-\frac{\sigma^2}{2}\right)T u - \frac{\sigma^2 T}{2}u^2}.
+$$
+With the characteristic function, the $\Pi_2$ in the Black-Scholes style formula can be written as
+\begin{eqnarray*}
+&& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\phi_T(u)}{iu}\right]\,du\\
+&=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{iu \left(\log\frac{S_0}{K} + \left(r-\frac{\sigma^2}{2}\right)T \right) - \frac{\sigma^2 T}{2}u^2}}{iu}\right]\,du.
+\end{eqnarray*}
+Again we apply Euler's formula $e^{ix} = \cos x + i\sin x$ to get rid of the $\text{Re}(\cdot)$ function to get
+\begin{eqnarray*}
+&&\frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{iu \left(\log\frac{S_0}{K} + \left(r-\frac{\sigma^2}{2}\right)T \right) - \frac{\sigma^2 T}{2}u^2}}{iu}\right]\,du\\
+&=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{\cos\left(u \left(\log\frac{S_0}{K} + \left(r-\frac{\sigma^2}{2}\right)T \right) \right) + i\sin\left(u \left(\log\frac{S_0}{K} + \left(r-\frac{\sigma^2}{2}\right)T \right) \right)}{iu}\right]e^{- \frac{\sigma^2 T}{2}u^2}\,du\\
+&=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \frac{\sin\left(u \left(\log\frac{S_0}{K} + \left(r-\frac{\sigma^2}{2}\right)T \right) \right)}{u} e^{- \frac{\sigma^2 T}{2}u^2} \,du.
+\end{eqnarray*}
+Set
+$$
+d_2 = \frac{\log \frac{S_0}{K} + \left(r-\frac{\sigma^2}{2}\right)T}{\sigma\sqrt T}
+$$
+for simplicity and apply the substitution $t = \sigma\sqrt T u$ to simplify the last integral above as
+\begin{eqnarray}
+&&\frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \frac{\sin\left(u \left(\log\frac{S_0}{K} + \left(r-\frac{\sigma^2}{2}\right)T \right) \right)}{u} e^{- \frac{\sigma^2 T}{2}u^2} \,du\nonumber\\
+&=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \frac{\sin\left(d_2 t \right)}{t} e^{- \frac{t^2}{2}} \,dt.\label{eq:Pi_2}
+\end{eqnarray}
+Note that since $d_2$ is just a constant parameter, the integrand is a well-behaved smooth function of $t$.
+This is critical when the Black-Scholes style formula is used with numerical integration.
+To further simplify the last expression in (\ref{eq:Pi_2}) we expand the integrand and integrate term by term.
+This technique can be justified by the dominated convergence theorem.
+In the end, we obtain a series that matches the series of $N(x)$.
+Thus $\Pi_2$ can be simplified as $N(d_2)$.
+
+
+
+To find $\Pi_1$, we could use Lemma \ref{lemma:Delta}, but instead let us apply the Girsanov Theorem and rewrite
+\begin{eqnarray}
+\Pi_1 &=& \tilde E\left[e^{-rT}\left(\frac{S_T}{S_0}\right) 1_{\left\{\log\frac{S_T}{S_0}>\log\frac{K}{S_0}\right\}}\right]\nonumber\\
+&=& \bar E\left[ 1_{\left\{\log\frac{S_T}{S_0}>\log\frac{K}{S_0}\right\}}\right]\nonumber\\
+&=& \bar P\left(\log\frac{S_T}{S_0}>\log\frac{K}{S_0}\right),\label{eq:Pi1NewMeasure}
+\end{eqnarray}
+where the expectation $\bar E$ is taken under another probability measure $\bar P$,
+and the Radon-Nikodym derivative of $\bar P$ with respect to the risk-neutral probability measure is
+\begin{eqnarray}
+e^{-rT}\left(\frac{S_T}{S_0}\right) = e^{-\frac{\sigma^2}{2}T + \sigma \tilde W_T}.\label{eq:RNderivative}
+\end{eqnarray}
+This change of measure is equivalent to a change of numeraire in derivatives pricing.
+Numeraire is a unit of measure used to evaluate security prices.
+While any security can be the numeraire, the most commonly used numeraire is the money market account.
+When the numeraire is changed, the risk-neutral probability measure should also be changed accordingly.
+By switching the probability measure from $\tilde P$ to $\bar P$,
+we are now using the underlying asset as the numeraire, and hence $\bar P$ is known as the stock measure.
+So $\Pi_1$ in the Black-Scholes style formula is the probability that the call option will end up in the money, under the stock measure.
+Here the purpose of changing the numeraire is simply to simplify the computation.
+For more details about changing the numeraire in derivatives pricing, see for example \citet{shreve2004stochastic}.
+With the Radon-Nikodym derivative (\ref{eq:RNderivative}), the Girsanov Theorem tells us that
+$$
+\bar W_t = \tilde W_t - \sigma t
+$$
+is a Brownian motion under the stock measure $\bar P$.
+Thus we can rewrite the log return as
+\begin{eqnarray*}
+\log\frac{S_T}{S_0} &=& \left(r-\frac{\sigma^2}{2}\right)T + \sigma\left(\bar W_T +\sigma T\right)\\
+ &=& \left(r + \frac{\sigma^2}{2}\right)T + \sigma \bar W_T,
+\end{eqnarray*}
+which has distribution $N((r + \sigma^2/2)T, \sigma^2 T)$ under $\bar P$.
+Now apply Lemma \ref{lemma:prob} again on (\ref{eq:Pi1NewMeasure}) like how we got $\Pi_2$ above.
+We obtain
+\begin{eqnarray*}
+\Pi_1 = \bar P\left(\log\frac{S_T}{S_0}>\log\frac{K}{S_0}\right) = \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \frac{\sin\left( d_1 t\right)}{t} e^{- \frac{t^2}{2}} \,dt
+\end{eqnarray*}
+with
+$$
+d_1 = \frac{\log\frac{S_0}{K} + \left(r + \frac{\sigma^2}{2}\right)T}{\sigma\sqrt T}.
+$$
+The last integral is similar to (\ref{eq:Pi_2}) and can be simplified in the same way.
+Finally we obtain $\Pi_1 = N(d_1)$.
+
+
+
+
+\subsection{Carr and Madan's Algorithm}
+
+
+
+Consider a vanilla call option with strike price $K$, maturity $T$.
+Let the risk-free interest rate be a constant $r$.
+Let the underlying asset price process be $S_t$ and $\phi_T(u)$ the characteristic function of the log-return.
+Let $k = \log K$ and $b = 1.5$, $a(u) = e^{i(u - (b+1)i)\log S_0}$.
+Then the time 0 value of the call option is
+\begin{eqnarray}
+c = \frac{e^{-bk}}{\pi}\int_0^\infty e^{-iku} \frac{~e^{-rT}a(u)\phi_T(u-(b+1)i)~}{b^2+b-u^2+i(2b+1)u}\,du.\label{eq:PCarr}
+\end{eqnarray}
+This is the very popular FT-based pricing algorithm developed by \citet{carr1999option}.
+As our second example of the FT-based pricing algorithm, in this section we derive the algorithm.
+Its modification by the control variate technique will be discussed in later sections.
+
+
+
+A na\"ive idea to derive an FT-based pricing algorithm is to first derive the Fourier transform of the option price in closed form
+and then take the inverse Fourier transform numerically.
+But this will not work because the option price is not an integrable function and its Fourier transform is therefore not defined.
+\citet{carr1999option} multiply the option price by a damping factor to get an integrable function, so that this idea can work.
+Specifically, let $c(k)$ be the call option price in terms of the log-strike $k = \log K$.
+As a function of $k$, this is not integrable because as $k\rightarrow -\infty$, we have $K \rightarrow 0^+$,
+in which case the call option reduces to the right to get the stock for free at maturity,
+and the fair price of this option at time 0 is naturally $S_0$.
+Thus the graph of the function $c(k)$ has a nonzero horizontal asymptote $S_0$ on the right.
+To resolve this problem, \citet{carr1999option} use a damping factor $e^{bk}$ and prove that the function $e^{bk}c(k)$ is integrable as long as $b>0$.
+The derivation of Carr and Madan's algorithm is based on the Fourier transform of this function.
+From the above argument we can also see that the constant $b$ in Carr and Madan's algorithm (\ref{eq:PCarr}) need not be 1.5.
+Although Carr and Madan choose 1.5 in the original paper, any positive constant would suffice.
+
+
+
+To derive Carr and Madan's algorithm (\ref{eq:PCarr}) we need the definition of the Fourier transform and the inverse Fourier transform.
+For integrable functions $f(k)$ and $F(k)$, the Fourier transform is defined by
+$$
+\mathcal F(f(k))(v) = \int_{-\infty}^\infty e^{ivk}f(k)\,dk,
+$$
+and the inverse Fourier transform is defined by
+$$
+\mathcal F^{-1}(F(v))(k) = \frac{1}{2\pi} \int_{-\infty}^\infty e^{-ivk}F(v)\,dv.
+$$
+As long as $f$ is integrable, the Fourier inversion theorem guarantees that $\mathcal F^{-1}[\mathcal F[f]] = \mathcal F[\mathcal F^{-1}[f]] = f$,
+that is the Fourier transform and the inverse Fourier transform can undo each other.
+
+
+
+Since $e^{bk}c(k)$ is integrable and the Fourier transform is well-defined, we can write the option price as
+\begin{eqnarray}
+c(k) = e^{-bk} \mathcal F^{-1}[\mathcal F[e^{bk} c(k)]]. \label{eq:CarrInt}
+\end{eqnarray}
+As we will show later, $\mathcal F[e^{bk} c(k)]$ can be derived in closed form in terms of the characteristic function $\phi_T(u)$,
+and the inverse transform $\mathcal F^{-1}$ can be written as an integral by definition.
+So simplifying (\ref{eq:CarrInt}) would give us Carr and Madan's algorithm (\ref{eq:PCarr}).
+To derive the explicit formula of $\mathcal F[e^{bk}c(k)]$, first rewrite the option price as follows
+\begin{eqnarray*}
+c(k) &=& e^{-rT}\tilde E[(S_T - K)^+]\\
+ &=& e^{-rT}\tilde E[(e^{X_T + \log S_0} - e^k)^+] \\
+&=& e^{-rT} \int_{k-\log S_0}^\infty (e^{s+\log S_0} - e^k)q_T(s)\,ds,
+\end{eqnarray*}
+where $q_T$ is the probability density function of the log return $\log(S_T/S_0)$.
+Next plug into the definition of the Fourier transform and rewrite
+\begin{eqnarray*}
+\mathcal F(e^{bk}c(k))(u) &=& e^{-rT} \int_{-\infty}^\infty e^{iku}\int_{k-\log S_0}^\infty e^{bk}(e^{s+\log S_0} - e^k)q_T(s)\,ds\,dk.
+\end{eqnarray*}
+Move $e^{iku}$ into the second integral and apply Fubini's theorem to switch the order of the integration to get
+\begin{eqnarray*}
+\mathcal F(e^{bk}c(k))(u) &=& e^{-rT} \int_{-\infty}^\infty \int^{s+\log S_0}_{-\infty} e^{iku}e^{bk}(e^{s+\log S_0} - e^k)q_T(s)\,dk\,ds.
+\end{eqnarray*}
+The inner integral can be found and simplified as follows
+\begin{eqnarray*}
+\mathcal F(e^{bk}c(k))(u) &=& e^{-rT} \int_{-\infty}^\infty q_T(s) \left[\int^{s+\log S_0}_{-\infty} e^{(iu+b)k+s+\log S_0} - e^{(iu+b+1)k}\,dk\right]\,ds\\
+&=& e^{-rT} \int_{-\infty}^\infty q_T(s) \left[ \frac{e^{(iu+b)k+s+\log S_0}}{iu+b} - \frac{e^{(iu+b+1)k}}{iu+b+1}\right]^{k=s+\log S_0}_{k=-\infty}\,ds\\
+&=& e^{-rT} \int_{-\infty}^\infty q_T(s) e^{(iu+b+1)(s+\log S_0)} \left[ \frac{1}{iu+b} - \frac{1}{iu+b+1}\right]\,ds.
+\end{eqnarray*}
+Moving all factors without $s$ out of the integral, we obtain
+\begin{eqnarray*}
+%&=& \frac{e^{-rT}}{b^2+b-u^2+i(2b+1)u} \int_{-\infty}^\infty q_T(s) e^{(iu+b+1)(s+\log S_0)} \,ds\\
+\mathcal F(e^{bk}c(k))(u) &=& \frac{e^{-rT}}{b^2+b-u^2+i(2b+1)u} \int_{-\infty}^\infty q_T(s) e^{i(u-(b+1)i)(s+\log S_0)} \,ds\\
+&=& \frac{e^{-rT}e^{i(u-(b+1)i)\log S_0}}{b^2+b-u^2+i(2b+1)u} \int_{-\infty}^\infty q_T(s) e^{i(u-(b+1)i)s} \,ds
+\end{eqnarray*}
+For simplicity set $a(u) = e^{i(u-(b+1)i)\log S_0}$.
+Since the characteristic function is the Fourier transform of the probability density function, the last expression gives
+\begin{eqnarray*}
+\mathcal F(e^{bk}c(k))(u) = \frac{~e^{-rT}a(u)\phi_T(u-(b+1)i)~}{b^2+b-u^2+i(2b+1)u}.
+\end{eqnarray*}
+
+
+
+Having derived the closed form formula of $\mathcal F[e^{bk} c(k)]$,
+one can use the definition of the inverse Fourier transform to rewrite (\ref{eq:CarrInt}) as
+\begin{eqnarray*}
+c(k) &=& e^{-bk} \mathcal F^{-1}\left[\frac{~e^{-rT}a(u)\phi_T(u-(b+1)i)~}{b^2+b-u^2+i(2b+1)u}\right]\\
+     &=& \frac{e^{-bk}}{2\pi}\int_{-\infty}^\infty e^{-iku} \frac{~e^{-rT}a(u)\phi_T(u-(b+1)i)~}{b^2+b-u^2+i(2b+1)u}\,du.
+\end{eqnarray*}
+As shown in \cite{carr1999option}, the above integrand is an even function of $u$, so we can write
+$$
+c = \frac{e^{-bk}}{\pi}\int_0^\infty e^{-iku} \frac{~e^{-rT}a(u)\phi_T(u-(b+1)i)~}{b^2+b-u^2+i(2b+1)u}\,du.
+$$
+This completes the derivation.
+
+
+
+\subsection{Modified Algorithms}
+
+
+
+Most of the FT-based pricing algorithms are just one dimensional integrals,
+like the Black-Scholes style formula (\ref{eq:BSstyle}) and Carr and Madan's algorithm (\ref{eq:PCarr}) derived previously.
+To implement the algorithms one can apply numerical integration such as the trapezoidal rule,
+which can be enhanced by the control variate method as illustrated in Section \ref{sec:GCV_ncdf},
+once a suitable control variate of the integrand is found.
+
+
+
+
+To apply the control variate method on numerical integration, first we need to find a control variate of the integrand,
+which is a function such that its integral is known analytically, and it behaves similarly to the integrand.
+At first glance, with the integrands in (\ref{eq:PCarr}) and (\ref{eq:BSstyle}) it does not seem obvious how to find such functions,
+but here we provide a general methodology to find control variates for all FT-based algorithms under all models.
+
+
+
+Given an option pricing model, observe that in (\ref{eq:PCarr}) and (\ref{eq:BSstyle}) the integrals are known analytically if and only if we have a closed form option price.
+The same is true for many other FT-based pricing algorithms.
+Thus any model with a closed form option price can serve as the control model.
+Among others we choose the model suggested by \citet{jarrow1982approximate}, which is based on the Edgeworth series expansion.
+This model is easy to calibrate, which also helps to find a good control, as we will explain later.
+
+
+
+To derive the control variate of the integrand from the Edgeworth series, first denote by $X$ the random variable $\log(S_T/S_0)$.
+Recall that the characteristic function of $X$, denoted by $\phi_T(u)$, is assumed to have a closed form expression.
+The Edgeworth series expansion requires the first few moments of $X$, which are fortunately also known in closed form
+since the $k$-th raw moment is $(-i)^n \frac{d^n\phi_T}{du^n}(0)$ and we have an analytical formula for $\phi_T(u)$.
+Let $m$ and $s^2$ be the mean and variance of $X$.
+Denote by $q(x)$ the normal density function with mean $m$ and variance $s^2$.
+Given the first few cumulants $c_k$ of $X$, the 5th order Edgeworth series approximation of the density function of $X$ is
+\begin{eqnarray*}
+f^{\text{CV}}(x) = q(x) -\frac{c_3}{3!}\frac{d^3q}{dx^3}(x) + \frac{c_4}{4!}\frac{d^4q}{dx^4}(x) - \frac{c_5}{5!}\frac{d^5q}{dx^5}(x).
+\end{eqnarray*}
+This is the control variate of the density function of $X$,
+Note that $f^{\text{CV}}(x)$ is not a probability density function since it can take negative values,
+but its Fourier transform is known in closed form as
+\begin{eqnarray}
+\phi_T^{\text{CV}}(u)   &=& \int_{-\infty}^{\infty}e^{iux}\left(q(x) -\frac{c_3}{3!}\frac{d^3q}{dx^3}(x) + \frac{c_4}{4!}\frac{d^4q}{dx^4}(x) - \frac{c_5}{5!}\frac{d^5q}{dx^5}(x)\right)\,dx\nonumber\\
+                        &=& e^{imu-\frac{s^2 u^2}{2}}\left(\left(1+\frac{c_4}{4!}u^4\right) - i\left(\frac{c_3}{3!}u^3-\frac{c_5}{5!}u^5\right)\right),\label{eq:ctrl_chf}
+\end{eqnarray}
+which is the control variate of $\phi_T(u)$.
+If $f^{\text{CV}}(x)$ behaves similarly to the density function of $X$,
+its Fourier transform $\phi_T^{\text{CV}}(u)$ should behave similarly to $\phi_T(u)$.
+Thus the integrands of (\ref{eq:PCarr}) and (\ref{eq:BSstyle}) with ``characteristic functions'' $\phi_T^{\text{CV}}(u)$ and $\phi_T(u)$ should behave similarly.
+Define the difference of the characteristic function $\phi_T^{\text{Diff}}(u) = \phi_T(u) - \phi_T^{\text{CV}}(u)$.
+Now the integrals can be decomposed.
+Taking Carr and Madan's algorithm as an example, (\ref{eq:PCarr}) can be rewritten as
+\begin{eqnarray}
+c &=& \frac{e^{-dk}}{\pi}\int_0^\infty e^{-iuk}\frac{~e^{-rT}a(u)\phi_T^{\text{Diff}}(u-(d+1)i)~}{d^2+d-u^2+i(2d+1)u}\, du \label{eq:PCarrDiff}\\
+    &&+ \frac{e^{-dk}}{\pi}\int_0^\infty e^{-iuk}\frac{~e^{-rT}a(u)\phi_T^{\text{CV}}(u-(d+1)i)~}{d^2+d-u^2+i(2d+1)u}\, du, \label{eq:PCarrCV}
+\end{eqnarray}
+that is the integral of the difference (\ref{eq:PCarrDiff}) plus the integral of the control variate (\ref{eq:PCarrCV}).
+%The first and the second integrals (\ref{eq:PCarrDiff}) and (\ref{eq:PCarrCV}) are the difference and the control variate of the option price, respectively.
+While numerical integration is still needed to evaluate (\ref{eq:PCarrDiff}), (\ref{eq:PCarrCV}) is known analytically.
+
+
+
+Denote the integral (\ref{eq:PCarrCV}) by $c^{\text{CV}}$.
+This can be thought of as the control variate of the option price.
+Although it does have a closed form expression, it is hard to work out directly from (\ref{eq:PCarrCV}).
+To derive the closed form formula, observe that $c^{\text{CV}}$ is just Carr and Madan's pricing formula for a call option with characteristic function $\phi_T^{\text{CV}}(u)$.
+Instead of the Fourier transform $\phi_T^{\text{CV}}(u)$, we take a step back and use $f^{\text{CV}}(x)$ to derive the call option, that is
+\begin{eqnarray*}
+c^{\text{CV}} = e^{-rT}\int_{-\infty}^\infty (S_0 e^s-K)^+\,f^{\text{CV}}(s)\,ds.%\label{eq:cCVint}
+\end{eqnarray*}
+Since $f^{\text{CV}}(s)$ is the sum of a normal density function and its derivatives, $c^{\text{CV}}$ clearly has an analytical formula.
+The formula is derived in \citet{jarrow1982approximate} as
+{\small
+\begin{eqnarray}
+c^{\text{CV}}   &=& S_0\left(1 + \frac{c_3}{3!} + \frac{c_4}{4!} +  \frac{c_5}{5!}\right)e^{m+\frac{s^2}{2}-rT}N\left(\frac{m+s^2-\log\frac{K}{S_0}}{s}\right) - Ke^{-rT} N\left(\frac{m-\log\frac{K}{S_0}}{s}\right)\nonumber\\
+                && + Ke^{-rT}q\left(\log\frac{K}{S_0} \right)\left[-\left(\frac{c_5}{5!}\right)p_3\left(\log\frac{K}{S_0} \right) + \left(\frac{c_5}{5!} + \frac{c_4}{4!}\right)p_2\left(\log\frac{K}{S_0} \right)\right.\nonumber\\
+                &&\quad\qquad\qquad\qquad\qquad\quad\left. - \left(\frac{c_5}{5!} + \frac{c_4}{4!}  + \frac{c_3}{3!}\right)p_1\left(\log\frac{K}{S_0} \right) + \left(\frac{c_5}{5!} + \frac{c_4}{4!}  + \frac{c_3}{3!}\right)\right],\label{eq:cCV}
+\end{eqnarray}
+}
+where $N(x)$ is the standard normal distribution function, $q(x)$ is the normal density function with mean $m$ and variance $s^2$, and
+\begin{eqnarray*}
+%q(x) &=& \frac{1}{\sqrt{2\pi}} e^{-\frac12\left(\frac{x-m}{s}\right)^2},\\
+p_k(x) &=& \frac{d^kq(x)}{dx^k}/q(x),\\
+p_1(x) &=& (m-x)/s^2, \\
+p_2(x) &=& \left(m^2-s^2-2mx+x^2\right)/s^4, \\
+p_3(x) &=& (m-x)\left(m^2-3s^2-2mx+x^2\right)/s^6.
+\end{eqnarray*}
+To sum up, the modified Carr and Madan's algorithm is
+\begin{eqnarray*}
+c = \frac{e^{-dk}}{\pi}\int_0^\infty e^{-iuk}\frac{~e^{-rT}a(u)\phi_T^{\text{Diff}}(u-(d+1)i)~}{d^2+d-u^2+i(2d+1)u}\, du + c^{\text{CV}},
+\end{eqnarray*}
+where the integral is evaluated with numerical integration such as the trapezoidal rule,
+and $c^{\text{CV}}$ is given by the above closed form formula.
+
+
+
+
+
+In a similar manner, the control variate technique can also be applied to modify the Black-Scholes Style formula (\ref{eq:BSstyle}).
+With the same control variate $\phi_T^{\text{CV}}(u)$ as in (\ref{eq:ctrl_chf}),
+we take the decomposition $\phi_T(u) = \phi_T^{\text{CV}}(u) + \phi_T^{\text{Diff}}(u)$ and rewrite $\Pi_1$ as
+\begin{eqnarray*}
+\Pi_1 &=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\left(\phi_T^{\text{CV}}(u-i) +  \phi_T^{\text{Diff}}(u - i)\right)}{iu\phi_T(-i)}\right]\,du\\
+&=& \frac{1}{2}
++ \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\phi_T^{\text{CV}}(u-i)}{iu\phi_T(-i)}\right]\,du
++ \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\phi_T^{\text{Diff}}(u - i)}{iu\phi_T(-i)}\right]\,du.
+\end{eqnarray*}
+Denote the control variate and the difference of $\Pi_1$ as
+\begin{eqnarray*}
+\Pi_1^{\text{CV}} &=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\phi_T^{\text{CV}}(u-i)}{iu\phi_T(-i)}\right]\,du,\\
+\Pi_1^{\text{Diff}} &=& \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\phi_T^{\text{Diff}}(u - i)}{iu\phi_T(-i)}\right]\,du.
+\end{eqnarray*}
+Similarly, rewrite $\Pi_2$ as
+\begin{eqnarray*}
+\Pi_2 &=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\phi_T^{\text{CV}}(u)}{iu}\right]\,du
++ \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\phi_T^{\text{Diff}}(u)}{iu}\right]\,du,
+\end{eqnarray*}
+where we denote
+\begin{eqnarray*}
+\Pi_2^{\text{CV}} &=& \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\phi_T^{\text{CV}}(u)}{iu}\right]\,du,\\
+\Pi_2^{\text{Diff}} &=& \frac{1}{\pi}\int_0^{\infty} \text{Re}\left[\frac{e^{-iu \log\left(\frac{K}{S_0}\right)}\phi_T^{\text{Diff}}(u)}{iu}\right]\,du.
+\end{eqnarray*}
+Obviously we can write $\Pi_1 = \Pi_1^{\text{CV}} + \Pi_1^{\text{Diff}}$ and $\Pi_2 = \Pi_2^{\text{CV}} + \Pi_2^{\text{Diff}}$.
+Plugging these into the Black-Scholes pricing formula (\ref{eq:BSstyle}), we obtain the modified algorithm
+\begin{eqnarray*}
+c &=& S_0 \left(\Pi_1^{\text{CV}} + \Pi_1^{\text{Diff}}\right) - K e^{-rT} \left(\Pi_2^{\text{CV}} + \Pi_2^{\text{Diff}}\right) \\
+&=&  S_0 \Pi_1^{\text{Diff}} - K e^{-rT} \Pi_2^{\text{Diff}} + c^{\text{CV}},
+\end{eqnarray*}
+where we denote $c^{\text{CV}} = S_0 \Pi_1^{\text{CV}} - K e^{-rT} \Pi_2^{\text{CV}}$.
+It is the same control variate of the price of the call option as the one used in the modified Carr and Madan algorithm.
+The closed form formula is given above.
+
+
+
+
+\subsection{Calibrating the Control Model}
+\label{sec:find_cumulants}
+
+Using the model based on the Edgeworth expansion as the control, we have five parameters to estimate -- $m, s, c_3, c_4$ and $c_5$.
+We want to find a set of parameters so that the $\phi_T^{\text{CV}}(u)$ function in (\ref{eq:ctrl_chf})
+behaves similarly to the characteristic function used in pricing.
+The assumption of the Edgeworth expansion is that $m$ and $s$ are the mean and the standard deviation of the distribution to be approximated,
+and $c_3$, $c_4$ and $c_5$ are its 3rd, 4th and 5th cumulants.
+In our case of interest the distribution to be approximated is the distribution of the log-return $\log(S_T/S_0)$.
+One way of finding the cumulants is to find the raw moments first, through differentiating the closed form characteristic function $\phi_T(u)$.
+Let $m_i$ be the $i$-th raw moment.
+Then the the mean and the standard deviation are obviously given by
+\begin{eqnarray*}
+m &=& m_1,\\
+s &=& \sqrt{m_2 - m_1^2}.
+\end{eqnarray*}
+The cumulants can be obtained by the following formulas
+\begin{eqnarray*}
+c_3 &=& 2 m_1^3-3 m_1 m_2+m_3, \\
+c_4 &=& -6 m_1^4+12 m_1^2 m_2-4 m_1 m_3-3 m_2^2+m_4, \\
+c_5 &=& 24 m_1^5-60 m_1^3 m_2+20 m_1^2 m_3+30 m_1 m_2^2-5 m_1 m_4-10 m_2 m_3+m_5.
+\end{eqnarray*}
+This way of getting the cumulants is, however, sometimes not very convenient.
+
+
+
+Many, if not all, popular derivatives pricing models have characteristic functions of the form $\phi_T(u) = e^{\psi_T(u)}$,
+where $\psi_T(u)$ is called the characteristic exponent.
+Examples include all exponential L\'evy models and the Heston stochastic volatility model.
+When differentiating a characteristic function $\phi_T(u)$ of this form to get the raw moments, the expression soon gets complicated.
+A better way to find cumulants is to use the definition
+-- the $k$-th cumulant of a random variable $X$ is the $k$-th coefficient of the power series expansion of $\log E[e^{u X}]$ multiplied by $k!$.
+Now to find the cumulants of $\log(S_T/S_0)$,
+if the characteristic function is of the form $\phi_T(u) = E[e^{i u \log(S_T/S_0)}] = e^{\psi_T(u)}$
+then we just need the power series of
+$$
+\log E[e^{u \log(S_T/S_0)}] = \log \phi_T(-iu) = \psi_T(-iu),
+$$
+the first few terms of which will be much easier to write down explicitly than differentiating $\phi_T(u)$ directly.
+As an example, consider the exponential L\'evy model developed by \citet{merton1976option}, whose characteristic exponent is given by
+$$
+\psi_T(u) = iu\left( r- \lambda\left(e^{\alpha+\frac{\beta^2}{2}}-1\right)-\frac{\sigma^2}{2}\right)T -\frac{\sigma^2 u^2}{2}T + \lambda T \left(e^{i\alpha u -\frac{1}{2}\beta^2 u^2}-1\right),
+$$
+where $\alpha, \beta>0, \sigma>0$ and $\lambda>0$ are model parameters, and $r$ is the constant risk-free interest rate.
+Thus
+\begin{eqnarray}
+\psi_T(-iu) = u\left( r- \lambda\left(e^{\alpha+\frac{\beta^2}{2}}-1\right)-\frac{\sigma^2}{2}\right)T + \frac{\sigma^2 u^2}{2}T + \lambda T \left(e^{\alpha u +\frac{1}{2}\beta^2 u^2}-1\right).\label{eq:charExpJD}
+\end{eqnarray}
+We expand the last parentheses using the series $e^x - 1 = x + x^2/2! + x^3/3! + x^4/4! + \cdots$.
+We obtain
+\begin{eqnarray*}
+&&e^{\alpha u +\frac{1}{2}\beta^2 u^2} - 1 \\
+&=& \left(\alpha u +\frac{1}{2}\beta^2 u^2\right) + \frac12 \left(\alpha u +\frac{1}{2}\beta^2 u^2\right)^2 + \frac16 \left(\alpha u +\frac{1}{2}\beta^2 u^2\right)^3 + \frac{1}{24} \left(\alpha u +\frac{1}{2}\beta^2 u^2\right)^4 + \cdots\\
+&=& \alpha u + \frac12 (\alpha^2 + \beta^2) u^2 + \frac16 (\alpha^3 + 3 \alpha \beta^2) u^3 + \frac{1}{24} (\alpha^4 + 6 \alpha^2 \beta^2 + 3 \beta^4) u^4 + \cdots.
+\end{eqnarray*}
+Pluggin this into (\ref{eq:charExpJD}) we obtain the power series
+\begin{eqnarray*}
+\psi_T(-iu) &=& \left( r- \lambda\left(e^{\alpha+\frac{\beta^2}{2}}-1-\alpha\right)-\frac{\sigma^2}{2}\right)Tu + \frac{1}{2}(\sigma^2 + \lambda(\alpha^2 + \beta^2))T u^2\\
+&&+ \frac16 \lambda \alpha(\alpha^2 + 3\beta^2)Tu^3 + \frac{1}{24} \lambda(\alpha^4 + 6\alpha^2\beta^2 + 3\beta^4)Tu^4 + \cdots.
+\end{eqnarray*}
+By definition this is equal to $\sum_{n=1}^\infty c_n\frac{u^n}{n!}$, with $c_n$ the $n$-th cumulant.
+Thus we have
+\begin{eqnarray*}
+c_1 &=& \left( r- \lambda\left(e^{\alpha+\frac{\beta^2}{2}}-1-\alpha\right)-\frac{\sigma^2}{2}\right)T, \\
+c_2 &=& (\sigma^2 + \lambda(\alpha^2 + \beta^2))T, \\
+c_3 &=& \lambda \alpha(\alpha^2 + 3\beta^2)T, \\
+c_4 &=& \lambda(\alpha^4 + 6\alpha^2\beta^2 + 3\beta^4)T,\\
+&& \vdots
+\end{eqnarray*}
+This is the first few cumulants of $\log(S_T/S_0)$ under Merton's model.
+The first two cumulants are also the mean and the variance, so we have
+$$
+m = c_1, \qquad s = \sqrt{c_2}.
+$$
+In general for any derivatives pricing model with a characteristic function of the form $\phi_T(u) = e^{\psi_T(u)}$,
+the first few cumulants can be easily computed by the same methodology.
+
+
+
+The derivation of some FT-based pricing algorithms imply that the characteristic function satisfies $\phi_T(-i) = e^{rT}$.
+This is a consequence of the assumption that $\log(S_T/S_0) - rT$ is a martingale.
+The risk-neutral probability measure is constructed to guarantee this property.
+While the characteristic function of a log-return process under the risk-neutral probability should satisfy $\phi_T(-i) = e^{rT}$,
+in general this is not always true for the characteristic function of the distribution inferred from a set of moments $m, s, c_3, c_4, c_5$.
+When the FT-based algorithm to be modified with the control variate technique has this property,
+the coefficients of the control model also have to satisfy $\phi_T^{\text{CV}}(-i) = e^{rT}$ so that
+the $c^{\text{CV}}$ formula (\ref{eq:cCV}) and applying the algorithm on $\phi_T^{\text{CV}}$ would give the same result.
+Thus we get one less degree of freedom to choose the parameters of the control model.
+We set $c_3, c_4$ to be the 3rd and the 4th cumulants of the target model, and then determine $c_5$ by solving $\phi_T(-i) = e^{rT}$.
+As a result, we obtain
+\begin{eqnarray}
+c_5 = 5!\left(e^{rT-m-\frac{s^2}{2}} - \left(1 + \frac{c_3}{3!} + \frac{c_4}{4!}\right)\right).\label{eq:c5}
+\end{eqnarray}
+
+
+In practice when applying the control variate technique to modify an FT-based pricing algorithm,
+we do not want to have go through the derivation just to check if it implies $\phi_T(-i) = e^{rT}$.
+For convenience, regardless of the type of the FT-based algorithm,
+we always use (\ref{eq:c5}) to determine the last coefficient $c_5$ of the control model, instead of using the 5th cumulant.
+
+
+
+
+\subsection{How to Find a Control Variate?}
+
+
+It is also possible to choose another model as the control variate,
+although a control should satisfy two conditions:
+\begin{enumerate}
+\item $\phi_T^{\text{CV}}(u)$ should behave similarly to $\phi_T(u)$, and
+\item the control variate of the option value $c^{\text{CV}}$ is known in closed form.
+\end{enumerate}
+The second condition means that we need a model under which the option price is known analytically,
+and the first one ensures that the difference of the integrand takes small values.
+
+
+
+When we choose a control model that satisfies the second condition,
+we also need to determine the model parameters so that $\phi_T^{\text{CV}}(u)$ and $\phi_T(u)$ have similar behavior.
+This is a calibration problem.
+We want to calibrate our control model to the target model, which is the model under which $\phi_T(u)$ is derived.
+Since the FT-based pricing algorithms are already computationally cheap,
+it would not make much sense if some rather expensive numerical optimization algorithm is involved for calibration.
+This explains why the model based on the Edgeworth series is a good control variate.
+The parameters of an Edgeworth expansion are just the moments and cumulants of the target model, which are known in closed form.
+
+
+
+The Black-Scholes model also has a closed form option pricing formula, and is easy to calibrate.
+Thus one can use it as the control model.
+This is considered by both \citet{tankov2003financial} and \citet{schmelzle2010option}, and is actually a special case of the Edgeworth series expansion.
+Indeed, while the Black-Scholes model only fits the second moment (the volatility),
+the Edgeworth series expansion is able to capture the skewness of the target model by fitting higher order moments.
+Numerical results are provided later to show that adding the information about the 3rd and the 4th moments of the target model really does yield more accuracy.
+
+
+
+\subsection{Numerical Results}
+
+We compare Carr and Madan's algorithm with its control variate modifications.
+We use both the Black-Scholes model and the Edgeworth expansion as the control variates
+to evaluate a vanilla call option with maturity $T=1$, strike price $K=120$, and initial underlying asset price $S_0=100$ under the Heston model.
+The model description and its characteristic function are given in Appendix \ref{appendix:heston}.
+The parameters used here are $r = 0.1$, $\kappa = 2$, $\theta = 0.04$, $\sigma = 0.5$, $\rho = -0.7$, $V_0 = 0.04$.
+The benchmark is 3.29968857626, obtained by the original Carr and Madan's formula (\ref{eq:PCarr}) evaluated by the trapezoidal rule with domain of integral $[0, 200]$ and number of partition $n=10000$.
+A comparison of the efficiency and the accuracy are shown in Figure \ref{tab:CM}.
+``Carr'' refers to the original Carr and Madan's algorithm,
+``BSCV'' means its modification with the Black-Scholes model as the control variate,
+and ``EWCV'' is the result of the modification with the Edgeworth expansion as the control variate.
+For all three algorithms the trapezoidal rule is used to integrate over the interval $[0, 200]$.
+The first column $n$ is the number of partition.
+The ``CPU (ms)'' columns give the running time of the algorithms in milliseconds,
+and the ``log error'' columns are the error of the pricing results taking common logarithm.
+Roughly speaking, the log error being $-(1+m)$ means the result has $m$-decimal-place accuracy.
+
+
+
+From the table in Figure \ref{tab:CM} we can see that given the same number of partition, the control variate modifications always need more time to accomplish the task.
+This is because the most time consuming part of an FT-based algorithm is the characteristic function evaluation,
+and with control variate we need $\phi_T^{\text{Diff}}(u) = \phi_T(u) - \phi_T^{\text{CV}}(u)$, that is one more characteristic function to evaluate.
+But this extra cost is worth it because, as we can see from the table, the accuracy is greatly improved by the control variate.
+In around 3 milliseconds, we get one-decimal-place accuracy with the Black-Scholes control,
+three-decimal-place accuracy with the Edgeworth expansion,
+while the pricing error of Carr and Madan's algorithm is just slightly less than 1.
+From this table it is obvious that using a control variate in Carr and Madan's algorithm does improve the accuracy and efficiency,
+and that the control variate based on Edgeworth expansion is better than a Black-Scholes control.
+Figures \ref{fig:CM} and \ref{fig:CMn} visualize the same numerical results.
+
+
+
+\begin{figure}[!t]
+\begin{center}
+\begin{tabular}{rrrrrrr}
+\toprule
+{} &      Carr &           &  CarrBSCV &           &  CarrEWCV &           \\
+{$n$} &  CPU (ms) & log error &  CPU (ms) & log error &  CPU (ms) & log error \\
+\midrule
+20  &  0.759470 &  1.549590 &  0.963912 & -1.295336 &  1.577646 & -0.985337 \\
+30  &  0.961859 &  1.317691 &  1.294384 & -1.233819 &  2.081359 & -2.013734 \\
+40  &  1.243889 &  1.113891 &  1.654414 & -1.434872 &  2.564547 & -3.078093 \\
+50  &  1.501288 &  0.918457 &  2.095728 & -1.659546 &  3.076060 & -4.121298 \\
+60  &  1.789476 &  0.724625 &  2.454526 & -1.879688 &  3.592500 & -5.167961 \\
+70  &  1.993918 &  0.529981 &  2.828925 & -2.094297 &  4.149171 & -6.218208 \\
+80  &  2.282106 &  0.333783 &  3.207428 & -2.305139 &  4.639338 & -7.271658 \\
+90  &  2.564547 &  0.135955 &  3.564585 & -2.513626 &  5.235830 & -8.327967 \\
+100 &  2.837956 & -0.063333 &  3.883152 & -2.720658 &  5.723533 & -9.386850 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\caption{
+Efficiency and Accuracy Comparison of Carr and Madan's and Its Control Variate Modifications.
+``Carr'' is the original Carr and Madan's algorithm,
+``CarrBSCV'' its control variate modification with the Black-Scholes control,
+and ``CarrEWCV' the modification with control variate based on the Edgeworth expansion.
+CPU (ms) is the computational time in milliseconds,
+and log error is the pricing error taking common logarithm.
+}\label{tab:CM}
+\end{figure}
+
+
+\begin{figure}[!t]
+\begin{center}
+    \parbox[t]{0.8\textwidth}{
+        \centerline{\epsfig{figure=eps/CM.eps, width=0.8\textwidth}}
+    }\hfill
+\end{center}
+\caption{
+Efficiency and Accuracy Comparison of Carr and Madan's and Its Control Variate Modifications.
+}\label{fig:CM}
+\end{figure}
+
+
+\begin{figure}[!t]
+\begin{center}
+    \parbox[t]{0.8\textwidth}{
+        \centerline{\epsfig{figure=eps/CMn.eps, width=0.8\textwidth}}
+    }\hfill
+\end{center}
+\caption{
+Accuracy Comparison of Carr and Madan's and Its Control Variate Modifications.
+``num'' is the number of partitions in the numerical integration.
+}\label{fig:CMn}
+\end{figure}
+
+
+Figure \ref{tab:BSstyle} gives an efficiency and accuracy comparison of the Black-Scholes style formula and its control variate modifications.
+Unlike Carr and Madan's algorithm, however, we get no benefit from the control variate technique.
+Given the same number of partition, adding the Black-Scholes type control variate to the algorithm will only improve the pricing error slightly.
+If the Edgeworth expansion is used as a control, we also get slightly more accurate pricing results than using the Black-Scholes control.
+But if we take the computational time into consideration, the original algorithm is still the best.
+As aforementioned, in a control variate modification of an FT-based pricing algorithm,
+to find the difference $\phi_T^{\text{Diff}}(u) = \phi_T(u) - \phi_T^{\text{CV}}(u)$,
+two characteristic functions need to be evaluated, one for the target model and one of the control model.
+This extra cost is not worth it if the pricing accuracy can only improve by a little.
+
+
+
+\begin{figure}[!t]
+\begin{center}
+\begin{tabular}{lrrrrrr}
+\toprule
+{} &   BSstyle &           & BSCV &           & EWCV &           \\
+{$n$} &  CPU (ms) & log error &    CPU (ms) & log error &    CPU (ms) & log error \\
+\midrule
+20 &  1.689719 &  0.180407 &    2.118307 &  0.061376 &    2.734093 &  0.255447 \\
+22 &  1.753350 &  0.069399 &    2.292369 &  0.007426 &    3.049376 &  0.183681 \\
+24 &  1.871171 & -0.045524 &    2.470126 & -0.076276 &    3.160628 & -0.017929 \\
+26 &  2.040307 & -0.163657 &    2.620789 & -0.178003 &    3.375333 & -0.378673 \\
+28 &  2.149506 & -0.284444 &    2.823998 & -0.290679 &    3.571153 & -1.280356 \\
+30 &  2.302632 & -0.407447 &    3.146260 & -0.409957 &    3.790784 & -0.884222 \\
+32 &  2.439337 & -0.532324 &    3.198807 & -0.533256 &    4.006719 & -0.725494 \\
+34 &  2.615862 & -0.658805 &    3.419669 & -0.659124 &    4.366339 & -0.741271 \\
+36 &  2.720136 & -0.786677 &    3.585111 & -0.786777 &    4.468560 & -0.820410 \\
+38 &  3.015303 & -0.915768 &    3.700468 & -0.915797 &    4.651654 & -0.928571 \\
+40 &  3.000524 & -1.045942 &    4.028477 & -1.045950 &    4.902895 & -1.050385 \\
+\bottomrule
+\end{tabular}
+
+\end{center}
+\caption{
+Efficiency and Accuracy Comparison of Black-Scholes Style Formula and Its Control Variate Modifications.
+}\label{tab:BSstyle}
+\end{figure}
+
+
+
+
+
+\section{Convolution Pricing Algorithms}
+\label{sec:CONV}
+So far our discussion is limited to one-step pricing algorithms.
+The entire algorithm is of the form $\mathbb T(f)$, an operator acting on some function.
+But there are pricing algorithms that can be thought of as a sequence of operators acting on a function,
+algorithms of the form $\mathbb T_n(\cdots\mathbb T_3(\mathbb T_2(\mathbb T_1(f)))\cdots)$.
+Examples include the binomial trees and the convolution pricing algorithms.
+Here we demonstrate how the control variate technique can be applied to the latter group.
+The binomial tree algorithm with control variates will be discussed in the next section.
+
+
+
+\subsection{Background Review}
+\label{sec:CONVBackgroundReview}
+The convolution pricing algorithms developed by \citet{lord2008fast} are a modified version of the quadrature methods suggested by \citet{andricopoulos2003universal}
+that can deal with the pricing problems of many exotic options including Bermudan options, discrete barrier options, look back options and Asian options (see \citet{vcerny2011improved}).
+% under a wide class of option pricing models, including all exponential L\`evy models.
+Although it only deals with discretely monitored exotic options,
+a Richardson extrapolation can be applied to obtain the value of continuously monitored options.
+The convolution pricing algorithm is based on the following theorem.
+\begin{theorem}
+\label{thm:CONV}
+Let $W_t$ be the standard Brownian motion, and $\mathcal F_t$ a filtration for the Brownian motion.
+Let $f(x)$ be a Borel measurable function, and $X_t = \mu t + \sigma W_t$.
+Then, for all $\Delta t>0$, $t>0$,
+$$
+{\mathsf E}[f(X_{t+\Delta t})|\mathcal F_t] = \int_{-\infty}^\infty f(y)p(x-y)\,dy,
+$$
+where $x = X_t$, and
+$$
+p(z) = \frac{1}{\sigma\sqrt{2\pi\Delta t}}~e^{-\frac{(z + \mu\Delta t)^2}{2\sigma^2\Delta t}}
+$$
+is the transition density function.
+In other words, the conditional expectation ${\mathsf E}[f(X_{t+\Delta t})|\mathcal F_t]$ is the convolution of $f(x)$ and a transition density $p(x)$, which we denote by
+$$
+{\mathsf E}[f(X_{t+\Delta t})|\mathcal F_t] = f(x)\otimes p(x).
+$$
+\end{theorem}
+Due to the Markov property of the Brownian motion, the conditional expectation ${\mathsf E}[f(X_{t+\Delta t})|\mathcal F_t]$ ought to be a function of $X_t$.
+The above theorem gives the function explicitly.
+For a detailed proof of the theorem see, for example, \citet{shreve2004stochastic}.
+
+
+
+
+
+
+The idea behind the convolution pricing algorithm is easy to understand.
+Suppose, under the Black-Scholes model, we are to evaluate a discretely monitored exotic option with maturity $T$ and observation points $0 < t_1 < t_2 < \ldots < t_n = T$.
+For simplicity assume that $\Delta t = t_{i+1} - t_i$ for all $i=1, 2, \ldots, n-1$.
+Assume that under the risk-neutral probability measure the price of the underlying asset follows the log-normal diffusion process $dS_t = rS_tdt + \sigma S_tdW_t.$
+Depending on the type of the option to be evaluated, at observation points the option value could jump.
+For example, an up-and-out barrier option with barrier $B$ at time $t_i-$ is worthless if $S_t>B$ because it is going to knock out,
+but at $t_i+$ it has positive time value since $S_t$ could drop below $B$ before next observation point.
+Another example is that the value of a Bermudan put with strike $K$ at time $t_i-$ should be $K - S_{t_i}$ if $S_{t_i}$ is too low,
+because the put holder has the right to exercise the contract right away,
+but at $t_i+$ the contract can not be exercised until next observation point, so the value drops.
+Apart from the observation points, in each time interval $(t_i , t_{i+1})$ the contract is just a vanilla European option, i.e., no early exercise, no knock in nor knock out,
+so the price of the contract at $t_i+$ should be the discounted expected value of the price at $t_{i+1}-$ conditional on the filtration at $t_{i}$, which can be evaluated by a convolution due to Theorem \ref{thm:CONV}.
+A convolution pricing algorithm begins with the payoff function (in log scale) and evaluates the option price backward in time.
+The above argument gives an intuitive explanation of the algorithms in Figures \ref{algo:conv_berm} and \ref{algo:conv_barrier}.
+
+
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+\begin{algorithmic}[1]
+    \STATE payoff$(x) \leftarrow \max(K - S_0e^x, 0)$
+    \STATE put$(t_n, x) \leftarrow$ payoff$(x)$
+    \STATE $p(x) \leftarrow e^{-(x+(r-\sigma^2/2)\Delta t)^2/(2\sigma^2\Delta t)}/(\sigma\sqrt{2\pi\Delta t})$
+    \FOR{$i=n$ \textbf{downto} $1$ }
+        \STATE $\text{put}(t_i, x) \leftarrow \max(\text{ put}(t_i, x), \text{ payoff}(x)~)$
+        \STATE $\text{put}(t_{i-1}, x) \leftarrow e^{-r\Delta t}( \text{put}(t_i, x)\otimes p(x) )$
+    \ENDFOR
+    \STATE \textbf{return} $\text{put}(t_0, 0)$
+\end{algorithmic}
+\end{framed}
+\caption{ Convolution Pricing Algorithm for Bermudan Put Options
+} \label{algo:conv_berm}
+\end{figure}
+
+
+
+\begin{figure}[!th]
+\begin{framed}
+\begin{algorithmic}[1]
+    \STATE payoff$(x) \leftarrow \max(S_0e^x - K, 0)$
+    \STATE call$(t_n, x) \leftarrow$ payoff$(x)$
+    \STATE $p(x) \leftarrow e^{-(x+(r-\sigma^2/2)\Delta t)^2/(2\sigma^2\Delta t)}/(\sigma\sqrt{2\pi\Delta t})$
+    \FOR{$i=n$ \textbf{downto} $1$ }
+        \STATE $\text{call}(t_i, x) \leftarrow \text{call}(t_i, x)\times 1_{\{x<\log(B/S_0)\}}$
+        \STATE $\text{call}(t_{i-1}, x) \leftarrow e^{-r\Delta t}( \text{call}(t_i, x)\otimes p(x) )$
+    \ENDFOR
+    \STATE \textbf{return} $\text{call}(t_0, 0)$
+\end{algorithmic}
+\end{framed}
+\caption{ Convolution Pricing Algorithm for Up-And-Out Barrier Call Options
+} \label{algo:conv_barrier}
+\end{figure}
+
+
+
+
+
+In both Figures \ref{algo:conv_berm} and \ref{algo:conv_barrier}, $p(x)$ is the transition density function.
+The value of the option is set to the payoff in log scale at time $T$ (see line 2).
+The variable $x$ represents $\log(S_{t_i}/S_0)$ at time $t_i$.
+In line 5 the option value is adjusted according to what should happen at observation point $t_i$.
+A Bermudan put holder will decide if he or she wants to exercise the contract and get payoff$(x) = K-S_{t_i}$ in line 5, or keep the contract with the value unchanged.
+An up-and-out call is set to 0 at observation point $t_i$ if $x>\log(B/S_0)$, or equivalently $S_{t_i} > B$.
+Before line 5, the function put$(\cdot, x)$ or call$(\cdot, x)$ keeps the value of the option at $t_i+$;
+after line 5, it keeps the value at $t_i-$.
+The discounted conditional expected value is evaluated in line 6 by a convolution,
+or more explicitly,
+\begin{eqnarray}
+\text{put}(t_{i-1}, x) &=& e^{-r\Delta t}\int_{-\infty}^\infty \text{put}(t_{i}, y)p(x-y)\,dy, \label{eq:line6conv}\\
+\text{call}(t_{i-1}, x) &=& e^{-r\Delta t}\int_{-\infty}^\infty \text{call}(t_{i}, y)p(x-y)\,dy, \label{eq:line6convBarrier}
+\end{eqnarray}
+for Figures \ref{algo:conv_berm} and \ref{algo:conv_barrier}, respectively.
+Finally when the loop terminates, the option value at $x=0$ is returned.
+Many convolution pricing algorithm has a similar form as in Figures \ref{algo:conv_berm} and \ref{algo:conv_barrier}.
+In those algorithms, one just needs to change the transition density function $p(x)$ according to the model,
+and to change line 5 according to the type of the option to be evaluated.
+
+
+
+
+To implement a convolution pricing algorithm, one first sets up a wide interval $[-a, a]$ and a uniform grid in the interval.
+Suppose the grid points are $-a = x_0 < x_1 < x_2 \cdots < x_m = a$, where $x_j = x_0 + jh$, $h = x_1 - x_0$.
+% For simplicity, further assume that $m$ is even so that $x_{m/2} = 0$.
+% This way when we return $\text{call}(t_0, 0)$ or $\text{put}(t_0, 0)$ in line 8 in Figure \ref{algo:CONV}, since 0 is one of the grid points, no interpolation is needed.
+In the implementation, all the functions are kept as an array of function values at $x_0, x_1, \ldots, x_m$.
+This is called a grid function.
+For example, the transition density $p(x)$ in line 3 in Figures \ref{algo:conv_berm} and \ref{algo:conv_barrier} is stored as an array $\{p(x_0), p(x_1), \ldots, p(x_m)\}$.
+To evaluate the convolution in line 6, or (\ref{eq:line6conv}) and (\ref{eq:line6convBarrier}), numerical integration and discrete convolution are involved,
+which is typically done by the fast Fourier transform (FFT) algorithm in $O(m\log m)$ computational time.
+Note that line 6 is the only place in the algorithm where we need a numerical approximation.
+Indeed, the payoff function and the transition density both have a closed form formula,
+and at each $x_j$, the two statements in line 5
+\begin{eqnarray*}
+\text{put}(t_i, x_j) &\leftarrow& \max(\text{ put}(t_i, x_j), \text{ payoff}(x_j)~)\\
+\text{call}(t_i, x_j) &\leftarrow& \text{call}(t_i, x_j)\times 1_{\{x_j<\log(B/S_0)\}}
+\end{eqnarray*}
+will not introduce any numerical error.
+
+
+
+\subsection{Modified Algorithms}
+In every convolution pricing algorithm there is a convolution step like line 6 in Figures \ref{algo:conv_berm} and \ref{algo:conv_barrier}.
+Since convolution is a linear operator, its numerical evaluation can be modified by the control variate technique,
+and if we choose the control variate appropriately, the resulting algorithm will have better accuracy.
+Although we only modify the algorithms in Figures \ref{algo:conv_berm} and \ref{algo:conv_barrier} as examples,
+the statement below is general and works for all convolution pricing algorithms.
+
+
+% 下面要再分小節的寫法
+%
+% Recall that every convolution pricing algorithm has a similar form as Figures \ref{algo:conv_berm} and \ref{algo:conv_barrier}, just line 3 and 5 are different.
+% Below, we will first give a statement on how the control variate technique can be applied to a convolution pricing algorithm,
+% where only line 6 is modified.
+% Thus the statement is general and works for all convolution pricing algorithms.
+% We then discuss possible control variates for Bermudan put and discrete barrier call option separately.
+
+
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+\begin{algorithmic}[1]
+    \STATE payoff$(x) \leftarrow \max(K - S_0e^x, 0)$
+    \STATE put$(t_n, x) \leftarrow$ payoff$(x)$
+    \STATE $p(x) \leftarrow e^{-(x+(r-\sigma^2/2)\Delta t)^2/(2\sigma^2\Delta t)}/(\sigma\sqrt{2\pi\Delta t})$
+    \FOR{$i=n$ \textbf{downto} $1$ }
+        \STATE $\text{put}(t_i, x) \leftarrow \max(\text{ put}(t_i, x), \text{ payoff}(x)~)$
+        \STATE $\text{put}_{\text{Diff}}(t_{i}, x) \leftarrow \text{put}(t_{i}, x) - \text{put}_{\text{CV}}(t_{i}, x)$
+        \STATE $ \text{put}(t_{i-1}, x) \leftarrow e^{-r\Delta t}( \text{put}_{\text{Diff}}(t_i, x)\otimes p(x) ) + e^{-r\Delta t}( \text{put}_{\text{CV}}(t_i, x)\otimes p(x) )$
+    \ENDFOR
+    \STATE \textbf{return} $\text{put}(t_0, 0)$
+\end{algorithmic}
+\end{framed}
+\caption{Bermudan Put Pricing Algorithm with Control Variate.
+The control variate $\text{put}_{\text{CV}}(t_{i}, x)$ is chosen in a way that $e^{-r\Delta t}( \text{put}_{\text{CV}}(t_i, x)\otimes p(x) )$ is known analytically.
+Thus only the first convolution in line 7 needs a numerical approximation.
+}
+\label{algo:conv_berm_CV}
+\end{figure}
+
+
+
+
+As mentioned earlier, the convolution step in line 6 in Figures \ref{algo:conv_berm} and \ref{algo:conv_barrier} is the only place in the algorithms where a numerical approximation is needed.
+Take the Bermudan put pricing as an example.
+We use a discrete convolution to approximate (\ref{eq:line6conv}),
+which is the only part that needs to be taken care of in order to improve the accuracy of the algorithm.
+Set $\mathsf T(f) = f\otimes p$, the ``convolve with $p(x)$'' operator.
+The operator $\mathbb T$ that approximates $\mathsf T$ is a discrete convolution in this example.
+Since $\mathsf T$ is linear, we can apply the control variate technique and use the better approximation $\mathbb T(f-g) + \mathsf T(g)$ in stead of $\mathbb T(f)$, as illustrated in (\ref{eq:GCVapprox}).
+In the context here, to evaluate (\ref{eq:line6conv}),
+first find a control variate $\text{put}_{\text{CV}}(t_i, y)$, evaluate $\text{put}_{\text{Diff}}(t_i, y) = \text{put}(t_i, y) - \text{put}_{\text{CV}}(t_i, y)$,
+and then rewrite (\ref{eq:line6conv}) as
+\begin{eqnarray}
+\text{put}(t_{i-1}, x) = e^{-r\Delta t}\int_{-\infty}^\infty \text{put}_{\text{Diff}}(t_{i}, y)p(x-y)\,dy + e^{-r\Delta t}\int_{-\infty}^\infty \text{put}_{\text{CV}}(t_{i}, y)p(x-y)\,dy.\label{eq:line6GCV}
+\end{eqnarray}
+Now the discrete convolution is only needed for the first integral.
+As have been discussed in earlier sections, there are two conditions a control variate should satisfy.
+In the example here, the conditions $\text{put}_{\text{CV}}(t_i, y)$ should satisfy are
+\begin{enumerate}
+\item $\text{put}_{\text{CV}}(t_i, y)$ should behave similarly to $\text{put}(t_i, y)$, and
+\item $\mathsf T( \text{put}_{\text{CV}} ) = \int_{-\infty}^\infty \text{put}_{\text{CV}}(t_{i}, y)p(x-y)\,dy$ is known in closed form.
+\end{enumerate}
+%The second condition ensures that we do not need a numerical approximation for the second integral in (\ref{eq:line6GCV}),
+The first condition guarantees a small error when we apply the discrete convolution on the first integral in (\ref{eq:line6GCV}),
+and the second condition precludes the need of a numerical approximation for the second integral. % in (\ref{eq:line6GCV}),
+Unlike modified one-step algorithms where only one control variate is needed,
+here we need $n$ control variates $\text{put}_{\text{CV}}(t_1, y), \text{put}_{\text{CV}}(t_2, y), \ldots, \text{put}_{\text{CV}}(t_n, y)$,
+one for each observation point $t_i$.
+The modified Bermudan put pricing algorithm is given in Figure \ref{algo:conv_berm_CV}.
+
+
+
+
+The only difference between the original algorithm given in Figures \ref{algo:conv_berm} and \ref{algo:conv_barrier} and the modified version given in Figure \ref{algo:conv_berm_CV} is that
+line 6 in the original algorithm is now rewritten as line 6 and 7 in the modified algorithm.
+We emphasize that in the modified algorithm, $e^{-r\Delta t}( \text{put}_{\text{CV}}(t_i, x)\otimes p(x) )$ is known in closed form.
+This is the second condition that must be satisfied by $\text{put}_{\text{CV}}(t_{i}, x)$.
+We must have the closed form formulas for $\text{put}_{\text{CV}}(t_{i}, x)$ and $e^{-r\Delta t}( \text{put}_{\text{CV}}(t_i, x)\otimes p(x) )$
+so that we can take the grid functions when implementing line 6 and 7.
+
+
+
+
+The discrete barrier option pricing algorithm in Figure \ref{algo:conv_barrier} can also be modified in a similar manner.
+One only needs to rewrite (\ref{eq:line6convBarrier}) as
+\begin{eqnarray}
+\text{call}(t_{i-1}, x) = e^{-r\Delta t}\int_{-\infty}^\infty \text{call}_{\text{Diff}}(t_{i}, y)p(x-y)\,dy + e^{-r\Delta t}\int_{-\infty}^\infty \text{call}_{\text{CV}}(t_{i}, y)p(x-y)\,dy, \label{eq:line6GCVBarrier}
+\end{eqnarray}
+where $\text{call}_{\text{CV}}(t_{i}, y)$ is the control variate,
+and $\text{call}_{\text{Diff}}(t_i, y) = \text{call}(t_i, y) - \text{call}_{\text{CV}}(t_i, y)$ the difference.
+The control variate $\text{call}_{\text{CV}}(t_{i}, y)$ should be chosen in a way that the following two conditions are satisfied:
+\begin{enumerate}
+\item $\text{call}_{\text{CV}}(t_i, y)$ should behave similarly to $\text{call}(t_i, y)$, and
+\item $\mathsf T( \text{call}_{\text{CV}} ) = \int_{-\infty}^\infty \text{call}_{\text{CV}}(t_{i}, y)p(x-y)\,dy$ is known in closed form.
+\end{enumerate}
+The modified algorithm is shown in Figure \ref{algo:conv_barrier_CV}.
+Obviously the same methodology can be used to modify all convolution pricing algorithms.
+
+
+
+
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+\begin{algorithmic}[1]
+    \STATE payoff$(x) \leftarrow \max(S_0e^x - K, 0)$
+    \STATE call$(t_n, x) \leftarrow$ payoff$(x)$
+    \STATE $p(x) \leftarrow e^{-(x+(r-\sigma^2/2)\Delta t)^2/(2\sigma^2\Delta t)}/(\sigma\sqrt{2\pi\Delta t})$
+    \FOR{$i=n$ \textbf{downto} $1$ }
+        \STATE $\text{call}(t_i, x) \leftarrow \text{call}(t_i, x)\times 1_{\{x<\log(B/S_0)\}}$
+        \STATE $\text{call}_{\text{Diff}}(t_{i}, x) \leftarrow \text{call}(t_{i}, x) - \text{call}_{\text{CV}}(t_{i}, x)$
+        \STATE $ \text{call}(t_{i-1}, x) \leftarrow e^{-r\Delta t}( \text{call}_{\text{Diff}}(t_i, x)\otimes p(x) ) + e^{-r\Delta t}( \text{call}_{\text{CV}}(t_i, x)\otimes p(x) )$
+    \ENDFOR
+    \STATE \textbf{return} $\text{call}(t_0, 0)$
+\end{algorithmic}
+\end{framed}
+\caption{Discrete Up-And-Out Call Pricing Algorithm with Control Variate.
+The control variate $\text{call}_{\text{CV}}(t_{i}, x)$ is chosen in a way that $e^{-r\Delta t}( \text{call}_{\text{CV}}(t_i, x)\otimes p(x) )$ is known analytically.
+Thus only the first convolution in line 7 needs a numerical approximation.
+}
+\label{algo:conv_barrier_CV}
+\end{figure}
+
+
+
+\subsection{Finding a Control Variate for Bermudan Puts Pricing}
+
+
+
+
+\begin{figure}[!t]
+\begin{center}
+    \parbox[t]{0.45\textwidth}{$\text{put}(t_{i}, x)$ \& $\text{put}_{\text{CV}}(t_{i}, x)$\\}
+    \parbox[t]{0.45\textwidth}{$\text{put}_{\text{Diff}}(t_{i}, x)$\\}
+    \parbox[t]{0.45\textwidth}{
+        \centerline{\epsfig{figure=eps/nsBSCV.eps, width=0.45\textwidth}}
+    }
+    \parbox[t]{0.45\textwidth}{
+        \centerline{\epsfig{figure=eps/nsBSDiff.eps, width=0.45\textwidth}}
+    }
+\end{center}
+\caption{Bermudan Put Pricing with European Put as a Control.
+In the left panel are the graphs of the time $t_i$ value of a Bermudan put (solid line) and a European put (dashed line).
+The graph of the difference is shown in the right panel.
+}
+\label{fig:cvBS}
+\end{figure}
+
+
+
+
+For Bermudan puts pricing, a control variate of put$(t_i, x)$ is a function $\text{put}_{\text{CV}}(t_i, x)$ that behaves similarly to put$(t_i, x)$ and
+$e^{-r\Delta t}(\text{put}_{CV}(t_i, x)\otimes p(x))$ is known in closed form.
+A possible choice is the Black-Scholes formula at time $t_i$, although we need to rewrite it in terms of $x = \log(S_{t_i}/S_0)$, that is
+\begin{eqnarray*}
+\text{put}_{\text{CV}}(t_i, x) &=& K e^{-r\tau_i} N\left( - \frac{\log\frac{S_{t_i}}{K} + \left(r - \frac{\sigma^2}{2}\right)\tau_i}{\sigma\sqrt{\tau_i}} \right)
+                                    - S_{t_i} N\left( - \frac{ \log\frac{S_{t_i}}{K} + \left(r + \frac{\sigma^2}{2}\right)\tau_i}{\sigma\sqrt{\tau_i}} \right)\\
+                                &=& K e^{-r\tau_i} N\left( - \frac{x + \log\frac{S_0}{K} + \left(r - \frac{\sigma^2}{2}\right)\tau_i}{\sigma\sqrt{\tau_i}} \right)
+                                    -S_0e^x N\left( - \frac{x + \log\frac{S_0}{K} + \left(r + \frac{\sigma^2}{2}\right)\tau_i}{\sigma\sqrt{\tau_i}} \right),
+\end{eqnarray*}
+where $\tau_i = T - t_i$.
+By using this control variate, we are approximating a Bermudan puts by European puts.
+At first glance it seems not obvious why $e^{-r\Delta t}(\text{put}_{CV}(t_i, x)\otimes p(x))$ is known in closed form,
+but due to Theorem \ref{thm:CONV} we know the convolution is equivalent to taking a conditional expectation.
+Thus
+\begin{eqnarray*}
+e^{-r\Delta t}( \text{put}_{\text{CV}}(t_i, x)\otimes p(x) )    &=& e^{-r\Delta t}\tilde{\mathsf E}[\text{European put at $t_i$}|\mathcal F_{t_{i-1}}]\\
+                                                                &=& e^{-r\Delta t}\tilde{\mathsf E}[ e^{-r \tau_i}\tilde{\mathsf E}[ (K-S_T)^+ |\mathcal F_{t_{i}}] |\mathcal F_{t_{i-1}}]\\
+                                                                &=& e^{-r\tau_{i-1}}\tilde{\mathsf E}[(K-S_T)^+|\mathcal F_{t_{i-1}}],
+\end{eqnarray*}
+which is a European put at time $t_{i-1}$, so
+\begin{eqnarray*}
+&&e^{-r\Delta t}(\text{put}_{\text{CV}}(t_i, x)\otimes p(x))\\
+&&= K e^{-r\tau_{i-1}} N\left( - \frac{x + \log\frac{S_0}{K} + \left(r - \frac{\sigma^2}{2}\right)\tau_{i-1}}{\sigma\sqrt{\tau_{i-1}}} \right)
+-S_0e^x N\left( - \frac{x + \log\frac{S_0}{K} + \left(r + \frac{\sigma^2}{2}\right)\tau_{i-1}}{\sigma\sqrt{\tau_{i-1}}} \right).
+\end{eqnarray*}
+We just derived the closed form formula of the convolution by writing it as a conditional expectation first.
+We will use this trick again later when we derive the closed form formula for the convolution for another control variate.
+
+
+
+Numerical results provided later show that with this control, the modified algorithm is already better than the plain convolution algorithm.
+However, from Figure \ref{fig:cvBS} we can see that the control variate and the Bermudan put are not very similar.
+Below we construct a better control variate, a control variate that makes the difference smaller.
+As the numerical results show us, we get even more accuracy with this new control variate.
+
+
+
+
+Recall that at each observation point $t_i$, the option holder gets to decide if he or she wants to exercise the contract.
+If $S_{t_i}$ is too low, the contract will be exercised to get $K - S_{t_i}$ immediately.
+There is a key value $S_{t_i}^*$, the so-called ``early exercise boundary'',
+such that if $S_{t_i}$ drops below this key value then the Bermudan put should be exercised and its value is just the payoff function $K - S_{t_i}$.
+The key value in log scale is $x^* = \log(S_{t_i}/S_0)$.
+In line 5 of the algorithm in Figure \ref{algo:conv_berm}, put$(t_i, x)$ is set to payoff$(x)$ on the left hand side of $x^*$;
+on the right hand side, put$(t_i, x)$ remains unchanged.
+We use a piecewise smooth function as the control variate.
+First, with the grid functions of put$(t_i, x)$ and payoff$(x)$, we numerically determine the value of $x^*$.
+On the left hand side of $x^*$ the control variate is set to the payoff, and hence the difference is zero.
+As for the right hand side of $x^*$, from Figure \ref{fig:cvBS} we see that the Bermudan put is a decreasing convex function,
+so we use a scaled exponential function $c_1 e^{c_2 x}$ with $c2 < 0$ as the control.
+To sum up, the control is
+\begin{eqnarray}
+(K - S_0 e^x)1_{\{x<x^*\}} + c_1 e^{c_2 x}1_{\{x\geq x^*\}}.\label{eq:CVem}
+\end{eqnarray}
+
+
+We choose $c_1$, $c_2$ such that the control variate is continuous and differentiable.
+To achieve the continuity, we must have $c_1 e^{c_2 x^*} = K - S_0e^{x^*}$;
+for the control variate to be differentiable at $x^*$, we must have $c_2 c_1 e^{c_2 x^*} = - S_0e^{x^*}$.
+This would give us two equations to solve for $c_1$ and $c_2$.
+Plain algebra shows that the solution is
+$$
+\begin{cases}
+c_2 = - \frac{S_0e^{x^*}}{K - S_0e^{x^*}}\\
+c_1 = (K - S_0e^{x^*}) e^{-c_2 x^*}
+\end{cases}.
+$$
+The graphs of the time $t_i$ value of a Bermudan put, the control variate and the difference are shown in Figure \ref{fig:CVem}.
+
+
+
+
+\begin{figure}[!t]
+\begin{center}
+    \parbox[t]{0.45\textwidth}{$\text{put}(t_{i}, x)$ \& $\text{put}_{\text{CV}}(t_{i}, x)$\\}
+    \parbox[t]{0.45\textwidth}{$\text{put}_{\text{Diff}}(t_{i}, x)$\\}
+    \parbox[t]{0.45\textwidth}{
+        \centerline{\epsfig{figure=eps/emCV.eps, width=0.45\textwidth}}
+    }
+    \parbox[t]{0.45\textwidth}{
+        \centerline{\epsfig{figure=eps/emDiff.eps, width=0.45\textwidth}}
+    }
+\end{center}
+\caption{Bermudan Put with (\ref{eq:CVem}) as a Control.
+In the left panel are the graphs of a Bermudan put (solid line) and the control variate given by (\ref{eq:CVem}) (dashed line).
+The graph of the difference is shown in the right panel.
+}
+\label{fig:CVem}
+\end{figure}
+
+
+
+
+
+To use (\ref{eq:CVem}) as a control variate, we still need the closed form formula for
+$$
+e^{-r\Delta t}\left(p(x) \otimes \left((K - S_0 e^x)1_{\{x<x^*\}} + c_1 e^{c_2 x}1_{\{x\geq x^*\}}\right)\right).
+$$
+Since the control variate is piecewise defined, and the ``convolve with $p(x)$'' operator is linear,
+the closed form formula can be found term by term, meaning we find
+$$
+e^{-r\Delta t}\left(p(x) \otimes (K-S_0e^x)1_{\{x<x^*\}}\right) \qquad\text{and}\qquad e^{-r\Delta t}\left(p(x) \otimes c_1e^{c_2x}1_{\{x\geq x^*\}}\right)
+$$
+separately.
+The second convolution can be evaluated directly as follows
+\begin{eqnarray*}
+p(x) \otimes c_1e^{c_2x}1_{\{x\geq x^*\}} &=&   c_1 \left( p(x) \otimes e^{c_2x}1_{\{x\geq x^*\}} \right)\\
+&=&  c_1 \int_{-\infty}^{\infty} \frac{1}{\sigma\sqrt{2\pi\Delta t}} e^{-\frac{1}{2} \left( \frac{y-x+(r-\sigma^2 /2)\Delta t}{\sigma\sqrt{\Delta t}}\right)^2}e^{c_2x}1_{\{x\geq x^*\}} \,dx\\
+&=& c_1 \int_{x^*}^{\infty} \frac{1}{\sigma\sqrt{2\pi\Delta t}} e^{-\frac{1}{2} \left( \frac{x-(r-\sigma^2 /2)\Delta t -y-c_2\sigma^2{\Delta t}}{\sigma\sqrt{\Delta t}}\right)^2} e^{-\frac{c_2}{2} \left( -2(r-\sigma^2 /2)\Delta t -2y -c_2\sigma^2{\Delta t}\right)}\,dx\\
+&=& c_1 e^{c_2\left(y+(r-\sigma^2 /2)\Delta t +\frac{c_2 \sigma^2{\Delta t}}{2}\right)} N\left(\frac{y+c_2\sigma^2{\Delta t} + (r-\sigma^2 /2)\Delta t-x^*}{\sigma\sqrt{\Delta t}}\right).
+\end{eqnarray*}
+For the first convolution $e^{-r\Delta t}\left(p(x) \otimes (K-S_0e^x)1_{\{x<x^*\}}\right)$,
+by Theorem \ref{thm:CONV} it can be rewritten as the conditional expectation
+$$
+e^{-r\Delta t} \tilde{\mathsf E}[(K-S_{t_i})1_{\{x<x^*\}}|\mathcal F_{t_{i-1}}].
+$$
+This is similar to a vanilla put option.
+The closed form formula is
+\begin{eqnarray*}
+&& K e^{-r\Delta t} N\left( - \frac{\log\frac{S_{t_{i-1}}}{S_{t_i}^*} + \left(r - \frac{\sigma^2}{2}\right)\Delta t}{\sigma\sqrt{\Delta t}} \right)
+-S_{t_{i-1}}N\left( - \frac{\log\frac{S_{t_{i-1}}}{S_{t_i}^*} + \left(r + \frac{\sigma^2}{2}\right)\Delta t}{\sigma\sqrt{\Delta t}} \right)\\
+&&= K e^{-r\Delta t} N\left( - \frac{ x - x^* + \left(r - \frac{\sigma^2}{2}\right)\Delta t}{\sigma\sqrt{\Delta t}} \right)
+-S_0e^xN\left( - \frac{ x - x^* + \left(r + \frac{\sigma^2}{2}\right)\Delta t}{\sigma\sqrt{\Delta t}} \right).
+\end{eqnarray*}
+
+
+
+
+
+\subsection{Finding a Control Variate for Discrete Barrier Options Pricing}
+\label{sec:findingCVforBarrier}
+For discrete up-and-out call options pricing, one possible choice of the control variate is to
+use another up-and-out call option that is only allowed to knock out at one observation point,
+that is
+\begin{eqnarray*}
+\text{call}_{\text{CV}}(t_{i}, x) &=& \left[S_0e^x N\left( \frac{x + \log\frac{S_0}{K} + \left(r + \frac{\sigma^2}{2}\right)\tau_i}{\sigma\sqrt{\tau_i}} \right)\right.\\
+&&\qquad \left.- K e^{-r\tau_i} N\left( \frac{x + \log\frac{S_0}{K} + \left(r - \frac{\sigma^2}{2}\right)\tau_i}{\sigma\sqrt{\tau_i}} \right)\right]\times 1_{\{x<\log(B/S_0)\}},
+\end{eqnarray*}
+which is the value at $t_i-$ of an up-and-out call option that is only allowed to knock out at $t_i$.
+With Theorem \ref{thm:CONV}, $e^{-r\Delta t}( \text{call}_{\text{CV}}(t_i, x)\otimes p(x) )$ can be rewritten as
+\begin{eqnarray*}
+e^{-r\Delta t}( \text{call}_{\text{CV}}(t_i, x)\otimes p(x) )    &=& e^{-r\Delta t}\tilde{\mathsf E}\left[(\text{European call at $t_i$})\times 1_{\{x<\log(B/S_0)\}}\big|\mathcal F_{t_{i-1}}\right]\\
+                                                                &=& e^{-r\tau_{i-1}}\tilde{\mathsf E}[ \tilde{\mathsf E}\left[ (S_T - K)^+ |\mathcal F_{t_{i}}]\times 1_{\{x<\log(B/S_0)\}} \big|\mathcal F_{t_{i-1}}\right],
+\end{eqnarray*}
+which is the value of the same option at $t_{i-1}$, also known in closed form.
+The derivation of the pricing formula is similar to that of a two-period barrier option pricing formula.
+
+
+
+Another way to construct a control variate is to use a scaled normal density function with numerically estimated parameters.
+The same technique can also be used to construct the control variate for Asian options pricing, as will be discussed in later sections.
+This idea relies on the assumption that the function to be approximated by the control variate has a bell shape,
+which is the case for the up-and-out barrier call options pricing algorithm.
+Note that in the original convolution pricing algorithm in Figure \ref{algo:conv_barrier},
+before the loop call$(t_n, x)$ goes up exponentially fast as $x$ increases.
+Line 5 sets the function values to zero for $x>\log(B/S_0)$.
+After line 5, the graph of call$(t_n, x)$ would be a triangle that is only nonzero in the interval $(0, \log(B/S_0)]$.
+It is then sent to be convolved with a gaussian kernel $p(x)$ in line 6.
+The resulting function call$(t_{n-1}, x)$ will be bell-shaped and can be approximated by a scaled normal density function of the form
+\begin{eqnarray}
+\frac{a_{n-1}}{s_{n-1}\sqrt{2\pi}}e^{-\frac{1}{2}\left(\frac{x-m_{n-1}}{s_{n-1}}\right)^2}.\label{eq:scaledBellShape}
+\end{eqnarray}
+This approximation has three parameters $a$, $m$ and $s$,
+representing the area under the curve, the mean and the standard deviation of the normal density, respectively.
+We estimate the parameters by numerically integrating the grid functions.
+For example, as an approximation of the area under call$(t_{n-1}, x)$,
+$a_{n-1}$ can be found by numerically integrating call$(t_{n-1}, x)$.
+Once the value of $a_{n-1}$ is determined, the normalized bell-shaped curve $\text{call}(t_{n-1}, x)/a_{n-1}$ has area 1 and therefore is a probability density function,
+the first and the second raw moments of which can be found by numerically integrating $x\cdot\text{call}(t_{n-1}, x)/a_{n-1}$ and $x^2\cdot\text{call}(t_{n-1}, x)/a_{n-1}$, respectively.
+We get $m_{n-1}$ directly from the first moment.
+To get an estimate of $s_{n-1}$, one just need to switch from the raw moment to the central moment.
+
+
+
+
+Having found the parameters of (\ref{eq:scaledBellShape}),
+we have a closed form approximation of the $\text{call}(t_{n-1}, x)$ function in the end of the first iteration of the loop.
+The following function can be used as a control variate in the second iteration of the loop
+\begin{eqnarray*}
+\text{call}_{\text{CV}}(t_{n-1}, x) = \left(\frac{a_{n-1}}{s_{n-1}\sqrt{2\pi}}e^{-\frac{1}{2}\left(\frac{x-m_{n-1}}{s_{n-1}}\right)^2}\right)\times 1_{\{x<\log(B/S_0)\}}.
+\end{eqnarray*}
+In general, a control variate of this form can be used for all indices $i \leq n-1$, that is
+$$
+\text{call}_{\text{CV}}(t_{i}, x) = \left(\frac{a_{i}}{s_{i}\sqrt{2\pi}}e^{-\frac{1}{2}\left(\frac{x-m_{i}}{s_{i}}\right)^2}\right)\times 1_{\{x<\log(B/S_0)\}}\qquad\forall i = n-1, n-2, \ldots, 1,
+$$
+because after the convolution step in line 6 of Figure \ref{algo:conv_barrier} we always get a bell-shaped curve.
+The parameters $a_i$, $m_i$ and $s_i$ can be estimated by numerically integrating the bell-shaped function, as described above.
+In the first iteration with index $i=n$, however, we can not use control variate of this from
+since no convolution step has been executed and therefore no bell-shaped function can be approximated.
+The closed form formula of $e^{-r\Delta t}(\text{call}_{\text{CV}}(t_{i}, x)\otimes p(x))$ can be evaluated by the following lemma.
+The derivation is straightforward.
+
+
+
+\begin{lemma}
+Let $f$ and $g$ be the probability density function of the normal distributions $N(\mu_1, \sigma_1)$ and $N(\mu_2, \sigma_2)$, respectively.
+Then for constant $L$,
+$$
+f \otimes \left(g\cdot 1_{\{x>L\}}\right) = \frac{1}{\sqrt{2\pi(\sigma_1^2 + \sigma_2^2)}} e^{-\frac12\frac{(x - m_1 - m_2)^2}{\sigma_1^2 + \sigma_2^2}}
+\left[1 - N\left(\frac{(L-m_2)\sigma_1^2 + (L-x+m_1)\sigma_2^2 }{\sigma_1\sigma_2\sqrt{\sigma_1^2 + \sigma_2^2}}\right)\right].
+$$
+\end{lemma}
+
+
+
+
+\subsection{Convolution Pricing Algorithms for Asian Options}
+
+
+
+A classic convolution-based algorithm is the Asian options pricing algorithm proposed by \cite{carverhill1990flexible}.
+In the following sections we introduce this algorithm and its variant, and the modification with the control variate technique.
+
+
+
+
+An Asian option is an option on the average value of the underlying asset prices through out the life of this option.
+As an example, consider an Asian call option with maturity $T$ and strike price $K$.
+As usual, we assume that the underlying asset price at time $t$ is $S_t$.
+For an $n$-period Asian option, the underlying asset price is observed $n$ times through out the life of this option.
+Say it is observed at time points $t_1 < t_2 < \ldots < t_n = T$.
+Together with the initial underlying asset price $S_{t_0}$, the average value of the $n+1$ prices are evaluated and the payoff of this option is
+\begin{eqnarray*}
+\left(\frac{1}{n+1} \sum_{j=0}^n S_{t_{j}} - K\right)^+. %\label{eq:payoffasian}
+\end{eqnarray*}
+Therefore, by (\ref{eq:universal_pricing_formula}), its no-arbitrage price is
+\begin{eqnarray*}
+e^{-rT}\tilde{\mathsf E}\left[\left(\frac{1}{n+1} \sum_{j=0}^n S_{t_{j}} - K\right)^+\right].\label{eq:AsianOptionValue}
+\end{eqnarray*}
+For simplicity, we assume that the observation points are equally distant,
+so there is a constant time interval $\Delta t = t_i - t_{i-1}$ for all $i=1, 2, \ldots, n$.
+In this setting, the underlying asset price is monitored discretely, and hence the option is called a discrete Asian option.
+There are also continuously monitored Asian options with payoff $\left(\frac{1}{T}\int_0^T S_t\,dt - K\right)^+$,
+whose pricing problem is discussed intensively in the literature.
+In this thesis, we only focus on discrete Asian options pricing.
+In principle it is not possible to derive a closed form pricing formula for Asian options,
+not even under the most analytically tractable Black-Scholes model.
+Some numerical scheme needs to be involved for the pricing problem.
+
+
+
+
+The main idea of \cite{carverhill1990flexible} is to numerically approximate the probability density function of the average value.
+Unlike previously discussed convolution pricing algorithms which evaluate the option values backward in time,
+Carverhill and Clewlow's algorithm goes forward.
+Given the grid function of the probability density of $\log(S_{t_0} + S_{t_1} + \cdots + S_{t_k})$,
+the algorithm evaluates the density function of $\log(S_{t_0} + S_{t_1} + \cdots + S_{t_{k}} + S_{t_{k+1}})$.
+The algorithm goes recursively until the $\log(S_{t_0} + S_{t_1} + \cdots + S_{T})$ is found.
+Once this is done, using numerical integration to find the fair price (\ref{eq:AsianOptionValue}) is straightforward.
+
+
+
+
+To understand Carverhill and Clewlow's algorithm, let us introduce some notations first.
+Denote $X_i\equiv S_{t_i}/S_{{t_{i-1}}}$ the return of the underlying asset price, and $R_i = \log X_i$ the log return.
+Under the Black-Scholes model, $\{X_i\}$ is a sequence of iid log-normal random variables, and $\{R_i\}$ a sequence of iid normal.
+With these notations, the underlying asset price at any observation point can be written as the product of a sequence of $X$'s as follows
+$$
+S_{t_j} = S_{t_0} \frac{S_{t_1}}{S_{t_0}} \frac{S_{t_2}}{S_{t_1}} \cdots \frac{S_{t_j}}{S_{t_{j-1}}} = S_{t_0}X_1X_2\cdots X_j.
+$$
+The starting point of Carverhill and Clewlow's algorithm is the following decomposition of the average price $A$.
+\begin{eqnarray}
+   A &=& \frac{1}{n+1}\sum\limits^n_{i=0} S_{t_j} = \frac{1}{n+1} \left(S_{t_0} + S_{t_1} + S_{t_2} + \cdots + S_{t_n}\right)\label{eq:A_sum}\\
+     &=& \frac{S_{t_0}}{n+1}\left(1+X_1+X_1X_2+\cdots+X_1X_2\cdots X_n\right)\nonumber\\
+     &=& \frac{S_{t_0}}{n+1}\left(1+X_1\left(1+X_2\left(\cdots X_{n-1}\left(1+X_n\right)\right)\right)\right).\nonumber
+%     &=& \frac{S_{t_0}}{n+1}\left(1+e^{R_1+\ln(1+\exp(\cdots+\ln(1+\exp(R_n))))}\right) = \frac{S_{t_0}}{n+1}\left(1+e^{B_0}\right),
+\end{eqnarray}
+Define
+$$
+B_j = \log(X_{j+1}(1+X_{j+2}(\ldots X_{n-2}(1+X_{n-1}(1+ X_n))))).
+$$
+Then we can write
+\begin{eqnarray}
+A = \frac{S_{t_0}}{n+1}\left(1+e^{B_0}\right).\label{eq:AB0}
+\end{eqnarray}
+It is not hard to verify the following recurrence relation
+\begin{eqnarray}
+B_{j-1} = R_{j} + \log ( 1 + \exp (B_{j})) \qquad j=n-1, n-2, \ldots , 1\label{eq:recurrenceCarverhill}
+\end{eqnarray}
+with the ``initial value'' $B_{n-1} = R_n$.
+For simplicity, we denote $Y_{j} = \log ( 1 + \exp (B_{j}))$, or equivalently,
+$$
+Y_j = \log(1 + X_{j+1}(1+X_{j+2}(\ldots X_{n-2}(1+X_{n-1}(1+ X_n))))).
+$$
+Thus the recurrence relation (\ref{eq:recurrenceCarverhill}) can also be written as
+$$
+B_{j-1} = R_{j} + Y_j \qquad j=n-1, n-2, \ldots , 1.
+$$
+Our ultimate goal is to find the density function of $A$ so that we can apply numerical integration to find $e^{-rT}\tilde{\mathsf E}[(A-K)^+]$.
+With the recurrence relation (\ref{eq:recurrenceCarverhill}) it is more clear how to obtain the density.
+One can start from $B_{n-1} = R_n$, which is known to be normally distributed,
+and then apply (\ref{eq:recurrenceCarverhill}) to find the density function of $B_{n-2}$.
+With the density function of $B_{n-2}$, (\ref{eq:recurrenceCarverhill}) can be applied again to find the density function of $B_{n-3}$.
+The process goes on until the density function of $B_0$ is found, from which only a change of variable is needed to obtain the density of $A$.
+
+
+
+
+Closed form density functions are not possible to obtain.
+All the density functions of $B_j$'s need to be approximated numerically by grid functions.
+This is similar to the previously discussed convolution pricing algorithms.
+First set up a wide interval $[-a, a]$ and a uniform grid $\{x_i\}$, where $-a = x_0 < x_1 < x_2\cdots < x_m = a$.
+For any function $f$, the algorithm only keeps its values on the grid, that is $\{f(x_0), f(x_1), f(x_2), \ldots, f(x_m)\}$.
+Given the grid function of the density of $B_j$, to obtain the grid function of the density of $Y_j = \log ( 1 + \exp (B_{j}))$
+one can apply interpolation to evaluate
+\begin{equation}
+f_{Y_{j}}(x) =
+\begin{cases}
+f_{B_{j}}(\ln (e^x-1))\frac{e^x}{e^x-1}&\mbox{if }x>0\\
+0 &\mbox{otherwise}
+\end{cases}\label{eq:ChangeDen}
+\end{equation}
+at each grid point.
+Since $R_{j}$ and $Y_j = \log ( 1 + \exp (B_{j}))$ is independent,
+$B_{j-1} = R_{j} + Y_j$ is the sum of two independent random variables.
+Its density function is the convolution of the density functions of $R_j$ and $Y_j$.
+To find the grid function, one needs to use the discrete convolution algorithm.
+To sum up, there are two steps to apply the recurrence relation (\ref{eq:recurrenceCarverhill})
+to find the grid function of the density of $B_{j-1}$ from that of $B_{j}$.
+First apply interpolation to evaluate the grid function of the density of $Y_j$ by (\ref{eq:ChangeDen}).
+Then use the discrete convolution algorithm to evaluate the grid function of the density of $B_{j-1}$ given the density functions of $R_j$ and $Y_j$.
+Carverhill and Clewlow's algorithm is shown in Figure \ref{algo:conv_asian}.
+
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+\begin{algorithmic}[1]
+    \STATE $f_R \leftarrow \text{grid function of } e^{-(x-(r-\sigma^2/2)\Delta t)^2/(2\sigma^2\Delta t)}/(\sigma\sqrt{2\pi\Delta t})$
+    \STATE $f_{B_{n-1}} \leftarrow f_R$
+    \FOR{$j=n-1$ \textbf{downto} $1$ }
+        \STATE Given $f_{B_{j}}$, evaluate $f_{Y_j}$ by (\ref{eq:ChangeDen}) and interpolation
+        \STATE $f_{B_{j-1}} \leftarrow f_R \otimes f_{Y_j}$
+    \ENDFOR
+    \STATE Given $f_{B_0}$, evaluate $f_A$ by (\ref{eq:AB0}) and interpolation
+    \STATE \textbf{return} $e^{-rT}\tilde{\mathsf E}[(A-K)^+]$
+\end{algorithmic}
+\end{framed}
+\caption{Carverhill and Clewlow's Algorithm for Asian Options Pricing
+} \label{algo:conv_asian}
+\end{figure}
+
+
+
+
+\citet{benhamou2002fast} argues that Carverhill and Clewlow's algorithm is inefficient and can be improved.
+In Carverhill and Clewlow's algorithm, a very wide interval $[-a, a]$ is needed
+because all the random variables $Y_j$'s and $B_j$'s considered in the algorithm are suppose to have most of their probability mass stay in the interval.
+Indeed, by taking the grid function $\{f_{B_j}(x_0), f_{B_j}(x_1), f_{B_j}(x_2), \ldots, f_{B_j}(x_m)\}$ with $x_0 = -a$ and $x_m = a$,
+the probability mass of $B_j$ out of the interval $[-a, a]$ is meeting in the algorithm.
+We truncate the part of $f_{B_j}$ out of $[-a, a]$.
+Hence $[-a, a]$ should be big enough so that the truncation error can be ignored.
+But from the identities
+\begin{eqnarray*}
+B_j &=& \log(X_{j+1}(1+X_{j+2}(\ldots X_{n-2}(1+X_{n-1}(1+ X_n))))), \\
+Y_j &=& \log(1 + X_{j+1}(1+X_{j+2}(\ldots X_{n-2}(1+X_{n-1}(1+ X_n))))).
+\end{eqnarray*}
+we can see that, since the log-normal random variable $X_j$ is positive,
+when $j$ goes smaller and smaller, the probability mass of $B_j$ and $Y_j$ shifts to the right.
+As a result, an interval $[-a, a]$ that contains most of the probability mass of all $Y_j$'s and $B_j$'s would be very big.
+While the interval $[-a, a]$ is big, to obtain accurate pricing results we still need a fine grid.
+Thus a huge number of grid points is needed, making Carverhill and Clewlow's algorithm inefficient.
+
+
+
+
+The idea of \citet{benhamou2002fast} is simple.
+First estimate the mean value of $B_j$ and shift the density by this amount.
+Denote by $\mu_j$ the estimated mean value and denote $D_j = B_j - \mu_j$.
+The mean value of such constructed $D_j$ will be close to zero, thus the majority of the probability mass is in the neighborhood of 0.
+Instead of the grid function of the density of $B_j$,
+modify the algorithm and write everything in terms of the grid function of the density of $D_j$.
+This way the interval that needs to contain the majority of the probability mass of the grid function considered in the algorithm will be greatly reduced.
+\citet{benhamou2002fast} uses the following estimated mean values of $B_j$'s
+\begin{eqnarray}
+     \mu_{n-1}   &=& \tilde{\mathsf E}[R_n]\label{eq:mu_init}\\
+     \mu_{j-1}   &=& \tilde{\mathsf E}[R_{j}]+\log (1+\exp (\mu_{j}))\qquad j=n-1, n-2, \ldots , 1.\label{eq:mu_rec}
+\end{eqnarray}
+Recall that the distribution of $R_j$'s are known (to be iid normal), so $\mu_{n-1}$ is known in closed form.
+All $\mu_j$'s can be found recursively.
+Since $\log(1+e^x)$ is a convex function, by Jensen's inequality we have
+\begin{eqnarray*}
+\tilde{\mathsf E}[B_{j-1}] &=& \tilde{\mathsf E}[R_{i}] + \tilde{\mathsf E}[\log(1+\exp (B_j))]\\
+&\geq& \tilde{\mathsf E}[R_{i}] + \log(1+\exp (\tilde{\mathsf E}[B_j])).
+\end{eqnarray*}
+Thus $\mu_j$ always underestimates the mean value of $B_j$.
+But it does not matter much.
+$\mu_j$ is still a good enough estimate that can shift the majority of the probability mass of $B_j$ to the neighborhood of 0.
+
+
+
+
+Replacing all $B_j$ by $D_j + \mu_j$, the recurrence relation (\ref{eq:recurrenceCarverhill}) can be modified as
+$$
+D_{j-1} = R_{j} + \ln(1+\exp(D_{j}+\mu_{j})) - \mu_{j-1}\qquad j=n-1, n-2, \ldots , 1
+$$
+with the ``initial value'' $D_{n-1} = R_n - \mu_{n-1}$.
+For simplicity we denote $Z_{j} = Y_{j} - \mu_{j-1} = \ln(1+\exp(D_{j}+\mu_{j})) - \mu_{j-1}$, whose density function in terms of the density function of $D_j$ is
+\begin{equation}
+f_{Z_{j}}(x) =
+\begin{cases}
+f_{D_{j}}\left(\ln (e^{x+\mu_{j-1}}-1) - \mu_j\right)\frac{e^{x+\mu_{j-1}}}{e^{x+\mu_{j-1}}-1}&\mbox{ if }x>0\\
+0 &\mbox{ otherwise }
+\end{cases}.                \label{eq:D2Zdensity}
+\end{equation}
+This is an analogue of (\ref{eq:ChangeDen}) that can be used with interpolation to find the grid function of $f_{Z_{j}}$ given the grid function of $f_{D_{j}}$.
+Benhamou's algorithm is shown in Figure \ref{algo:conv_asian_benh}.
+
+
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+\begin{algorithmic}[1]
+    \STATE Evaluate $\{\mu_j\}$ by (\ref{eq:mu_init}) and (\ref{eq:mu_rec})
+    \STATE $f_R \leftarrow \text{grid function of } e^{-(x-(r-\sigma^2/2)\Delta t)^2/(2\sigma^2\Delta t)}/(\sigma\sqrt{2\pi\Delta t})$
+    \STATE $f_{D_{n-1}} \leftarrow \text{grid function of } e^{-x^2/(2\sigma^2\Delta t)}/(\sigma\sqrt{2\pi\Delta t})$
+    \FOR{$j=n-1$ \textbf{downto} $1$ }
+        \STATE Given $f_{D_{j}}$, evaluate $f_{Z_j}$ by (\ref{eq:D2Zdensity}) and interpolation
+        \STATE $f_{D_{j-1}} \leftarrow f_R \otimes f_{Z_j}$
+    \ENDFOR
+    \STATE Given $f_{D_0}$, evaluate $f_A$ by (\ref{eq:AB0}) and interpolation
+    \STATE \textbf{return} $e^{-rT}\tilde{\mathsf E}[(A-K)^+]$
+\end{algorithmic}
+\end{framed}
+\caption{Benhamou's Algorithm for Asian Options Pricing
+} \label{algo:conv_asian_benh}
+\end{figure}
+
+
+
+\subsection{Modified Algorithms}
+
+
+Benhamou's algorithm in Figure \ref{algo:conv_asian_benh} has a similar structure as previously discussed convolution pricing algorithms.
+Thus it can be modified by the control variate technique in the same methodology as before.
+Take the Bermudan options pricing algorithm in Figure \ref{algo:conv_berm} as an example.
+In both algorithms in Figures \ref{algo:conv_asian_benh} and \ref{algo:conv_berm},
+line 6 is the convolution step which is linear and can be modified by the control variate technique.
+Specifically, line 6 in Benhamou's algorithm in Figure \ref{algo:conv_asian_benh} can be viewed as the ``convolve with $f_R$'' operator acting on $f_{Z_j}$.
+Thus we can modify the convolution step like we did in the modified Bermudan options pricing algorithm in Figure \ref{algo:conv_berm_CV}.
+First we find a control variate, a function $f_{Z_{j}}^{\text{CV}}$ that satisfies the two conditions:
+\begin{enumerate}
+  \item $f_{Z_{j}}^{\text{CV}}$ behaves similarly to $f_{Z_{j}}$ and
+  \item both $f_{Z_{j}}^{\text{CV}}$ and $f_{Z_{j}}^{\text{CV}}\otimes f_{R_{j}}$ are known in closed form.
+\end{enumerate}
+We then evaluate the grid function of the difference $f_{Z_{j}}^{\text{Diff}} = f_{Z_{j}} - f_{Z_{j}}^{\text{CV}}$
+and replace line 6 in Benhamou's algorithm by the decomposition
+\begin{eqnarray*}
+f_{D_{j-1}} = f_{R_{j}} \otimes f_{Z_{j}}^{\text{CV}} + f_{R_{j}} \otimes f_{Z_{j}}^{\text{Diff}}.
+\end{eqnarray*}
+The resulting algorithm is shown in Figure \ref{algo:conv_asian_benh_CV_1}.
+This is very similar to the modified Bermudan options pricing algorithm in Figure \ref{algo:conv_berm_CV}.
+Now we have two convolutions $f_{R_{j}} \otimes f_{Z_{j}}^{\text{CV}}$ and $f_{R_{j}} \otimes f_{Z_{j}}^{\text{Diff}}$.
+The first one is known in closed form; it does not require any numerical approximation and hence gives no numerical error.
+The second convolution needs to be approximated by discrete convolution algorithm with grid functions,
+but the numerical error will be tiny since $f_{Z_{j}}^{\text{Diff}}$ only takes small values.
+All these benefits are from the two conditions the control variate $f_{Z_{j}}^{\text{CV}}$ should satisfy.
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+\begin{algorithmic}[1]
+    \STATE Evaluate $\{\mu_j\}$ by (\ref{eq:mu_init}) and (\ref{eq:mu_rec})
+    \STATE $f_R \leftarrow \text{grid function of } e^{-(x-(r-\sigma^2/2)\Delta t)^2/(2\sigma^2\Delta t)}/(\sigma\sqrt{2\pi\Delta t})$
+    \STATE $f_{D_{n-1}} \leftarrow \text{grid function of } e^{-x^2/(2\sigma^2\Delta t)}/(\sigma\sqrt{2\pi\Delta t})$
+    \FOR{$j=n-1$ \textbf{downto} $1$ }
+        \STATE Given $f_{D_{j}}$, evaluate $f_{Z_j}$ by (\ref{eq:D2Zdensity}) and interpolation
+        \STATE $f_{Z_{j}}^{\text{Diff}} \leftarrow f_{Z_{j}} - f_{Z_{j}}^{\text{CV}}$
+        \STATE $f_{D_{j-1}} \leftarrow f_{R_{j}} \otimes f_{Z_{j}}^{\text{CV}} + f_{R_{j}} \otimes f_{Z_{j}}^{\text{Diff}}$
+    \ENDFOR
+    \STATE Given $f_{D_0}$, evaluate $f_A$ by (\ref{eq:AB0}) and interpolation
+    \STATE \textbf{return} $e^{-rT}\tilde{\mathsf E}[(A-K)^+]$
+\end{algorithmic}
+\end{framed}
+\caption{Benhamou's Algorithm Enhanced by the Control Variate Technique
+} \label{algo:conv_asian_benh_CV_1}
+\end{figure}
+
+
+
+Unlike previously discussed convolution pricing algorithms, however,
+in Benhamou's algorithm the convolution is not the only step that causes numerical error.
+The interpolation in line 5 and 8 in Figure \ref{algo:conv_asian_benh} also does.
+Fortunately this part can be enhanced by the control variate technique as well.
+Given the grid function of $f_{D_j}$, line 5 evaluates the grid function of $f_{Z_j}$ by interpolation and (\ref{eq:D2Zdensity}), which we repeat here.
+\begin{equation}
+f_{Z_{j}}(x) =
+\begin{cases}
+f_{D_{j}}\left(\ln (e^{x+\mu_{j-1}}-1) - \mu_j\right)\frac{e^{x+\mu_{j-1}}}{e^{x+\mu_{j-1}}-1}&\mbox{ if }x>0\\
+0 &\mbox{ otherwise }
+\end{cases}.                \label{eq:D2ZdensityAgain}
+\end{equation}
+To modify this step, we first find a control variate of $f_{D_j}$, a closed form function $f_{D_j}^{\text{CV}}$ that behaves similarly to $f_{D_j}$.
+We then find the grid function of the difference $f_{D_j}^{\text{Diff}} = f_{D_j} - f_{D_j}^{\text{CV}}$ and evaluate $f_{Z_j}$  by
+\begin{eqnarray}
+f_{Z_{j}}(x) &=& \left( f_{D_{j}}^{\text{CV}}\left(\ln (e^{x+\mu_{j-1}}-1) - \mu_j\right)
++ f_{D_{j}}^{\text{Diff}}\left(\ln (e^{x+\mu_{j-1}}-1) - \mu_j\right) \right) \frac{e^{x+\mu_{j-1}}}{e^{x+\mu_{j-1}}-1}\qquad\qquad \label{eq:IntpDecomp}
+\end{eqnarray}
+instead of (\ref{eq:D2ZdensityAgain}).
+This is only for positive $x$.
+For negative $x$ or zero, we still set $f_{Z_j}(x)$ to zero.
+On the right hand side of (\ref{eq:IntpDecomp}), Since the control variate $f_{D_{j}}^{\text{CV}}$ is known in closed form,
+the first term in the parentheses at any grid point $x_i$ can be found exactly.
+Only the second term requires an interpolation and will introduce numerical error.
+But the error will be tiny, as long as the control variate $f_{D_{j}}^{\text{CV}}$ behaves similarly to $f_{D_{j}}$
+so that the difference $f_{D_{j}}^{\text{Diff}}$ only takes small values.
+In contrast, in the original Benhamou algorithm which uses interpolation directly with (\ref{eq:D2ZdensityAgain}),
+since the variance of $D_j$ can be small, $f_{D_j}$ can have a very tall and narrow shape.
+Applying interpolation on this kind of function can yield significant numerical error.
+That is why when the interpolation step in Benhamou's algorithm is also modified by the control variate technique, the pricing error would be greatly improved.
+The modified algorithm is shown in Figure \ref{algo:conv_asian_benh_CV_2}.
+
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+\begin{algorithmic}[1]
+    \STATE Evaluate $\{\mu_j\}$ by (\ref{eq:mu_init}) and (\ref{eq:mu_rec})
+    \STATE $f_R \leftarrow \text{grid function of } e^{-(x-(r-\sigma^2/2)\Delta t)^2/(2\sigma^2\Delta t)}/(\sigma\sqrt{2\pi\Delta t})$
+    \STATE $f_{D_{n-1}} \leftarrow \text{grid function of } e^{-x^2/(2\sigma^2\Delta t)}/(\sigma\sqrt{2\pi\Delta t})$
+    \FOR{$j=n-1$ \textbf{downto} $1$ }
+        \STATE $f_{D_{j}}^{\text{Diff}} \leftarrow f_{D_{j}} - f_{D_{j}}^{\text{CV}}$
+        \STATE Given $f_{D_{j}}^{\text{Diff}}$, evaluate $f_{Z_j}$ by (\ref{eq:IntpDecomp}) and interpolation
+        \STATE $f_{Z_{j}}^{\text{Diff}} \leftarrow f_{Z_{j}} - f_{Z_{j}}^{\text{CV}}$
+        \STATE $f_{D_{j-1}} \leftarrow f_{R_{j}} \otimes f_{Z_{j}}^{\text{CV}} + f_{R_{j}} \otimes f_{Z_{j}}^{\text{Diff}}$
+    \ENDFOR
+    \STATE Given $f_{D_0}$, evaluate $f_A$ by (\ref{eq:AB0}) and interpolation
+    \STATE \textbf{return} $e^{-rT}\tilde{\mathsf E}[(A-K)^+]$
+\end{algorithmic}
+\end{framed}
+\caption{Another Modification of Benhamou's Algorithm by the Control Variate Technique
+} \label{algo:conv_asian_benh_CV_2}
+\end{figure}
+
+
+
+\subsection{Finding a Control Variate for Asian Options Pricing}
+In the modified Benhamou algorithm in Figure \ref{algo:conv_asian_benh_CV_2},
+we need to find the control variates of $f_{D_j}$ and $f_{Z_j}$.
+As $f_{D_j}$ and $f_{Z_j}$ are both probability density functions,
+one possible choice is to use normal density functions with parameters estimated numerically,
+like we did in discrete barrier options pricing.
+Of course, just because $f_{D_j}$ and $f_{Z_j}$ are probability density functions does not mean they can be well-approximated by normal density functions,
+but this choice can actually be justified.
+Many literatures, including \citet{hamdan1971logarithm}, \citet{naus1969distribution} and \citet{schwartz1982distribution}
+suggest that a sum of correlated log-normal random variables like (\ref{eq:A_sum}) can be well-approximated by a log-normal distribution.
+By approximating the average price $A$ by a log-normal distribution, \citet{levy1992pricing} derives a closed form approximation formula for Asian option prices.
+Recall that each $e^{B_j}$ or $e^{Y_j}$ has the same distribution as a partial sum of $A$,
+and $D_j$ and $Z_j$ are just shifted $B_j$ and $Y_j$.
+The fact that sum of correlated log-normal random variables can be well-approximated by a log-normal distribution implies that
+both $D_j$ and $Z_j$ can be well-approximated by normal distributions.
+
+
+
+
+So we use normal density functions as the control variates.
+We still need to estimate the parameters of the density function.
+Given the grid function of $f_{Z_j}$, first numerically integrate $x f_{Z_j}$ to get an estimate of the mean value.
+Say the estimate is $m_j$.
+Then numerically integrate $(x-m_j)^2 f_{Z_j}$ to find an estimate of the variance and therefore the standard deviation.
+Denote the estimated standard deviation by $s_j$.
+We use
+\begin{eqnarray}
+f_{Z_j}^{\text{CV}}(x) = \frac{1}{s_j\sqrt{2\pi}}e^{-\frac{1}{2}\left(\frac{x-m_j}{s_j}\right)^2}\label{eq:fZCV}
+\end{eqnarray}
+as the control variate of $f_{Z_j}$.
+The same idea works to find a control variate of $f_{D_j}$.
+
+
+
+
+For $f_{D_j}$, we only need the control variate to be a closed form function
+so that we can evaluate the first term of the right hand side of (\ref{eq:IntpDecomp}) without interpolation.
+For $f_{Z_j}$, however, we need a control variate $f_{Z_j}^{\text{CV}}$ such that $f_{R_{j}} \otimes f_{Z_{j}}^{\text{CV}}$ is known in closed form.
+We need the closed form because we do not want to use any numerical approximation
+to find the first convolution in line 8 of the modified Benhamou algorithm in Figure \ref{algo:conv_asian_benh_CV_2}.
+Since $R_j$ is normally distributed, with a control variate of the form (\ref{eq:fZCV}),
+$f_{R_{j}} \otimes f_{Z_{j}}^{\text{CV}}$ is simply another normal density function and is obviously known in closed form.
+
+
+
+
+Using numerical integration to estimate the parameters of the control variate requires $O(m)$ computational time, $m$ the number of grid points.
+This is not a great cost in comparison with the discrete convolution step which takes $O(m\log m)$ computations if the FFT algorithm is used.
+But in fact it is a unnecessary cost,
+because accurate estimates of both the mean and the standard deviation of $D_j$ and $Z_j$ can be derived more explicitly, as shown below.
+First note that, by the definition $D_j = B_j - \mu_j$, $Z_j = Y_j - \mu_j$ we have
+\begin{eqnarray*}
+&&\tilde{\mathsf E}[D_j] = \tilde{\mathsf E}[B_j] - \mu_j,\qquad \widetilde{\mathsf{Var}}[D_j] = \widetilde{\mathsf{Var}}[B_j],\\
+&&\tilde{\mathsf E}[Z_j] = \tilde{\mathsf E}[Y_j] - \mu_j, \qquad \widetilde{\mathsf{Var}}[Z_j] = \widetilde{\mathsf{Var}}[Y_j].
+\end{eqnarray*}
+Thus one way of finding the mean and the standard deviation of $D_j$ and $Z_j$ is to find the moments of $B_j$ and $Y_j$ first.
+Recall that we have the identities
+\begin{eqnarray*}
+B_j &=& \log(X_{j+1}(1+X_{j+2}(\ldots X_{n-2}(1+X_{n-1}(1+ X_n))))), \\
+Y_j &=& \log(1 + X_{j+1}(1+X_{j+2}(\ldots X_{n-2}(1+X_{n-1}(1+ X_n))))),
+\end{eqnarray*}
+or equivalently
+\begin{eqnarray*}
+e^{B_j} &=& X_{j+1}(1+X_{j+2}(\ldots X_{n-2}(1+X_{n-1}(1+ X_n)))), \\
+e^{Y_j} &=& 1 + X_{j+1}(1+X_{j+2}(\ldots X_{n-2}(1+X_{n-1}(1+ X_n)))).
+\end{eqnarray*}
+By definition $X_i = S_{t_i}/S_{t_{i-1}}$ are iid log-normal random variables
+and the associated normal distribution has mean $(r-\sigma^2/2)\Delta t$ and the standard deviation $\sigma\sqrt{\Delta t}$.
+The first two raw moments of $X_i$ can easily be found as
+$$
+\tilde{\mathsf E}[X_i] = e^{r\Delta t}, \qquad \tilde{\mathsf E}[X_i^2] = e^{(2r + \sigma^2)\Delta t}.
+$$
+To find the general formulas of the first two moments of $e^{B_j}$ and $e^{Y_j}$,
+first we introduce two lemmas.
+\begin{lemma}
+\label{lemma:mmul}
+Let $e_k$ be the $k$-th moment of $X$,
+    $m_{k}$ the $k$-th moment of $U$,
+and $m_{k}^\prime$ the $k$-th moment of $XU$.
+If $X$ is independent of $U$, then $m_k^\prime = e_k m_k$.
+In matrix form, we can write
+$$
+\begin{pmatrix}
+m_0^\prime\\ m_1^\prime\\ m_2^\prime
+\end{pmatrix}
+=
+\begin{pmatrix}
+e_0 & 0   & 0 \\
+0   & e_1 & 0 \\
+0   & 0   & e_2
+\end{pmatrix}
+\begin{pmatrix}
+m_0\\
+m_1\\
+m_2
+\end{pmatrix}.
+$$
+\end{lemma}
+\begin{lemma}
+\label{lemma:madd}
+Let $m_{k}$ be the $k$-th moment of $U$ and $m_{k}^\prime$ the $k$-th moment of $U+1$.
+Then
+$$
+\begin{pmatrix}
+m_0^\prime\\ m_1^\prime\\ m_2^\prime
+\end{pmatrix}
+=
+\begin{pmatrix}
+1 & 0& 0 \\
+1 & 1& 0 \\
+1 & 2& 1
+\end{pmatrix}
+\begin{pmatrix}
+m_0\\ m_1\\ m_2
+\end{pmatrix}.
+$$
+\end{lemma}
+Both lemmas can be proved by straightforward computation.
+
+
+The first two moments of $e^{B_j}$ and $e^{Y_j}$ can be evaluated as follows.
+First we put the first two raw moments (starting from zero) of $e^{B_{n-1}} = X_n$ together as a vector.
+$$
+v =
+\begin{pmatrix}
+1\\ e^{r\Delta t}\\ e^{(2r+\sigma^2)\Delta t}
+\end{pmatrix}.
+$$
+Then introduce two matrices
+$$
+C = \begin{pmatrix}
+1 & 0& 0 \\
+1 & 1& 0 \\
+1 & 2& 1
+\end{pmatrix}, \qquad
+M = \begin{pmatrix}
+1 & 0   & 0 \\
+0   & e^{r\Delta t} & 0 \\
+0   & 0   & e^{(2r+\sigma^2)\Delta t}
+\end{pmatrix}.
+$$
+By Lemma \ref{lemma:madd}, the first two raw moments of $e^{Y_{n-1}} = 1 + X_n$ is given by the vector $Cv$.
+Given the moments of $e^{Y_{n-1}}$, applying Lemma \ref{lemma:mmul} one can find that the moments of $e^{B_{n-2}} = X_{n-1}(1 + X_n)$ is given by the vector $MCv$.
+Then apply Lemma \ref{lemma:madd} again to find the moments of $e^{Y_{n-2}} = 1 + X_{n-1}(1 + X_n)$ as $CMCv$.
+Thus, by applying Lemmas \ref{lemma:mmul} and \ref{lemma:madd} alternately,
+we can conclude
+\begin{eqnarray*}
+&&\text{the first two raw moments of }e^{B_j}\text{ is given by the vector }(MC)^{n-j-1}v, \text{ and }\\
+&&\text{the first two raw moments of }e^{Y_j}\text{ is given by the vector }(CM)^{n-j-1}Cv.
+\end{eqnarray*}
+Through matrix diagonalization, it is possible to derive the explicit formula of the matrix power $(MC)^k$ and $(CM)^k$.
+That way we can obtain lengthy closed form formulas of the first two raw moments of $e^{B_j}$ and $e^{Y_j}$.
+Nevertheless, when implementing the algorithm a more efficient way to compute the moments of $e^{B_j}$ and $e^{Y_j}$
+is to perform the matrix multiplication in every iteration in the loop,
+as each matrix multiplication by $C$ or $M$ only takes a few (less than 5) floating point number's multiplication or addition operations,
+while the explicit formulas of the moments involve the power function which is a much more expensive operation.
+
+
+
+Given the moments of $e^{B_j}$ and $e^{Y_j}$, we still want to find estimates of the moments of ${B_j}$ and ${Y_j}$.
+As aforementioned, ${B_j}$ and ${Y_j}$ can be well-approximated by normal distributions and $e^{B_j}$ and $e^{Y_j}$ can be well-approximated by log-normal.
+The mean and the variance formulas of a log-normal distribution in terms of the mean and the variance of its associated normal distribution give us
+\begin{eqnarray*}
+\tilde{\mathsf E}(e^{B_j}) &\approx& e^{\tilde{\mathsf E}(B_j)+\widetilde{\mathsf{Var}}(B_j)/2},\\
+\widetilde{\mathsf{Var}}(e^{B_j}) &\approx& \left(e^{\widetilde{\mathsf{Var}}(B_j)}-1\right)e^{2\tilde{\mathsf E}(B_j)+\widetilde{\mathsf{Var}}(B_j)},
+\end{eqnarray*}
+which can be solved to obtain
+\begin{eqnarray*}
+\tilde{\mathsf{E}}(B_j) &=& \log\frac{\tilde{\mathsf{E}}(e^{B_j})^2}{\sqrt{\widetilde{\mathsf{Var}}(e^{B_j}) + \tilde{\mathsf{E}}(e^{B_j})^2}},\\
+\widetilde{\mathsf{Var}}(B_j) &=& \log\left(1 + \frac{\widetilde{\mathsf{Var}}(e^{B_j})}{\tilde{\mathsf{E}}(e^{B_j})^2}\right).
+\end{eqnarray*}
+This gives estimates of the mean and the variance of $B_j$, and therefore the standard deviation.
+The estimated mean and variance of $Y_j$ are also given by the same formulas as above.
+One just need to replace all $B_j$ in the formulas by $Y_j$.
+
+
+
+\subsection{Byproduct}
+Since we can also obtain the grid function of $f_{Y_0}$, there is a better way to evaluate the Asian call option value,
+instead of the interpolation step in line 10 in the modified Benhamou algorithm in Figure \ref{algo:conv_asian_benh_CV_2}.
+In fact, since the average price can be written as
+$$
+A = \frac{S_{t_0}}{n+1}e^{Y_0},
+$$
+one can rewrite the Asian call option price as follows
+\begin{eqnarray}
+C %&=& e^{-rT}E[(A-K)^+]\\
+  &=& e^{-rT}\tilde{\mathsf E}\left[\left(\frac{S_{t_0}}{n+1}e^{Y_0}-K\right)^+\right]\nonumber\\
+  &=& e^{-rT} \int_{-\infty}^{\infty} \left(\frac{S_{t_0}}{n+1}e^{x}-K\right)^+ f_{Y_0}(x) \,dx\nonumber\\
+  &=& e^{-rT} \int_{-\infty}^{\infty} \left(\frac{S_{t_0}}{n+1}e^{x}-K\right)^+ f_{Y_0}^{\text{CV}}(x) \,dx + e^{-rT} \int_{-\infty}^{\infty} \left(\frac{S_{t_0}}{n+1}e^{x}-K\right)^+ f_{Y_0}^{\text{Diff}}(x) \,dx. \qquad\qquad\label{eq:AsianCallDecomp}
+\end{eqnarray}
+
+
+
+As have been discussed in the previous section,
+$f_{Y_0}(x)$ is well-approximated by a normal density function.
+We have also discussed how to derive closed form approximations of the mean and the standard deviation of $Y_0$.
+Denote by $\mu_{Y_0}$ and $\sigma_{Y_0}$ the estimated mean and standard deviation, respectively.
+Then the control variate is the normal density function
+$$
+f_{Y_0}^{\text{CV}}(x) = \frac{1}{\sigma_{Y_0}\sqrt{2\pi}}e^{-\frac{1}{2}\left(\frac{x-\mu_{Y_0}}{\sigma_{Y_0}}\right)^2}.
+$$
+Plug this into (\ref{eq:AsianCallDecomp}) to obtain
+\begin{eqnarray}
+C &=& e^{-rT} \int_{-\infty}^{\infty} \left(\frac{S_{t_0}}{n+1}e^{x}-K\right)^+ \frac{1}{\sigma_{Y_0}\sqrt{2\pi}}e^{-\frac{1}{2}\left(\frac{x-\mu_{Y_0}}{\sigma_{Y_0}}\right)^2} \,dx \label{eq:AsianCallCV} \\
+&&+~ e^{-rT} \int_{-\infty}^{\infty} \left(\frac{S_{t_0}}{n+1}e^{x}-K\right)^+ f_{Y_0}^{\text{Diff}}(x) \,dx. \label{eq:AsianCallDiff}
+\end{eqnarray}
+Only the second integral requires numerical integration, and the error will be tiny since the difference $f_{Y_0}^{\text{Diff}}(x)$ only takes small values.
+The first integral can be evaluated explicitly as follows
+\begin{eqnarray*}
+&& e^{-rT} \int_{-\infty}^{\infty} \left(\frac{S_{t_0}}{n+1}e^{x}-K\right)^+
+\frac{1}{\sigma_{Y_0}\sqrt{2\pi}}e^{-\frac{1}{2}\left(\frac{x-\mu_{Y_0}}{\sigma_{Y_0}}\right)^2} dx \\
+&=& e^{-rT} \int_{\xi}^{\infty} \left(\frac{S_{t_0}}{n+1}e^{x}\right)
+\frac{1}{\sigma_{Y_0}\sqrt{2\pi}}e^{-\frac{1}{2}\left(\frac{x-\mu_{Y_0}}{\sigma_{Y_0}}\right)^2} dx
+-K e^{-rT} \int_{\xi}^{\infty}
+\frac{1}{\sigma_{Y_0}\sqrt{2\pi}}e^{-\frac{1}{2}\left(\frac{x-\mu_{Y_0}}{\sigma_{Y_0}}\right)^2} dx,
+\end{eqnarray*}
+where $\xi$ is the solution of $\frac{S_{t_0}}{n+1}e^{x} - K = 0$, that is $\xi = \log \frac{K(n+1)}{S_{t_0}}$.
+The last integral on the right hand side is
+$$
+-K e^{-rT} N\left( -\frac{ \xi - \mu_{Y_0}}{\sigma_{Y_0}} \right) = -K e^{-rT} N\left( \frac{ \log \frac{S_{t_0}}{K(n+1)} + \mu_{Y_0}}{\sigma_{Y_0}} \right),
+$$
+and the first integral can be derived as follows
+\begin{eqnarray*}
+&& e^{-rT} \int_{\xi}^{\infty} \left(\frac{S_0}{n+1}e^{x}\right) \frac{1}{\sigma_{Y_0}\sqrt{2 \pi }}e^{-\frac{(x-{\mu_{Y_0}})^2}{2 {\sigma_{Y_0}^2}}}\,dx
+%&=& \frac{S_0 e^{-rT} }{(n+1)}\int_{\xi}^{\infty} \frac{1}{\sigma_{Y_0}\sqrt{2 \pi}}e^{x-\frac{(x-{\mu_{Y_0}})^{2}}{2{\sigma_{Y_0}^2}}}\,dx\\
+=\frac{S_0 e^{-rT} }{(n+1)}\int_{\xi}^{\infty} \frac{1}{\sigma_{Y_0}\sqrt{2\pi}} e^{-\left[\frac{(x-{\mu_{Y_0}})^2-2{\sigma_{Y_0}^2} x}{2 {\sigma_{Y_0}^2}}\right]}\,dx\\
+&=&\frac{S_0 e^{-rT} }{(n+1)}\int_{\xi}^{\infty} \frac{1}{\sigma_{Y_0}\sqrt{2\pi }}e^{-\left[\frac{\left(x-\left({\mu_{Y_0}} +{\sigma_{Y_0}^2} \right)\right)^2}{2 {\sigma_{Y_0}^2}}\right] +\frac{-2 {\mu_{Y_0}} {\sigma_{Y_0}^2} -{\sigma_{Y_0}^4}}{-2 {\sigma_{Y_0}^2}}}\,dx\\
+&=&\frac{S_0 e^{-rT} }{(n+1)}e^{\frac{2 {\mu_{Y_0}} +{\sigma_{Y_0}^2}}{2}}N\left(-\frac{\xi-({\mu_{Y_0}} +{\sigma_{Y_0}^2})}{{\sigma_{Y_0}}}\right) = \frac{S_0 e^{-rT} }{(n+1)}e^{\frac{2 {\mu_{Y_0}} +{\sigma_{Y_0}^2}}{2}}N\left( \frac{ \log \frac{S_{t_0}}{K(n+1)} + {\mu_{Y_0}} +{\sigma_{Y_0}^2}}{{\sigma_{Y_0}}}\right).
+\end{eqnarray*}
+To sum up, the integral (\ref{eq:AsianCallCV}) is
+\begin{eqnarray*}
+&& e^{-rT} \int_{-\infty}^{\infty} \left(\frac{S_{t_0}}{n+1}e^{x}-K\right)^+ f_{Y_0}^{\text{CV}}(x) dx \\
+&&=\quad \frac{S_0 e^{-rT} }{(n+1)}e^{\frac{2 {\mu_{Y_0}} +{\sigma_{Y_0}^2}}{2}}N\left( \frac{ \log \frac{S_{t_0}}{K(n+1)} + {\mu_{Y_0}} +{\sigma_{Y_0}^2}}{{\sigma_{Y_0}}}\right) -K e^{-rT} N\left( \frac{ \log \frac{S_{t_0}}{K(n+1)} + \mu_{Y_0}}{\sigma_{Y_0}} \right).
+\end{eqnarray*}
+This is the control variate of the Asian call option price.
+In fact, since the difference (\ref{eq:AsianCallDiff}) is tiny, one can just ignore it and use the above formula as a closed form approximation.
+
+
+
+\subsection{Numerical Results}
+
+
+As explained in Section \ref{sec:CONVBackgroundReview},
+in any convolution based pricing algorithm we first set up an interval $[-a, a]$ and a grid $-a = x_0 < x_1 < x_2 \cdots < x_m = a$.
+For all numerical results in this section we set $a=2$ and change the number of grid points.
+
+
+First we compare the Bermudan options pricing algorithm to its control variate modifications.
+Consider a Bermudan put option with strike price $K=100$ and maturity $T=1$,
+whose underlying asset has initial price $S_0 = 100$, volatility $\sigma = 0.3$.
+Let $r=0.1$ be the risk-free interest rate.
+Assume that throughout the life of this one-year-long option,
+there are 12 observation points at time $t = 1/12, 2/12, \ldots, 1$ where the option is allowed to be exercised.
+For benchmark, we use the pricing result of the na\"ive convolution based pricing algorithm with $m=102400$, which is $8.24327435926$.
+Figure \ref{tab:berm} shows an efficiency and accuracy comparison of three algorithms.
+``Bermudan'' is the na\"ive convolution based pricing algorithm,
+``BSCV'' its modification with the Black-Scholes put price as the control variate,
+and ``expCV'' is the modification with (\ref{eq:CVem}) as the control variate.
+The first column $m$ is the number of partitions of the interval $[-a, a]$.
+``CPU (s)'' is the running time of the program in seconds, and ``log error'' columns give the pricing error taking common logarithm.
+Because of the extra cost to evaluate the control variate,
+given the same number of partitions, both control variate modifications take more time than the na\"ive algorithm to accomplish the task.
+But the extra cost gets less significant as $m$ goes larger and larger,
+because in each loop iteration in the modified algorithm in Figure \ref{algo:conv_berm_CV}, the control variate in line 6 only takes $O(m)$ computations,
+while the convolution step in line 7 using the FFT algorithm takes $O(m\log m)$ computations.
+When $m$ is large, the majority of the computational time is spent on the convolution step.
+Besides, given the same number of grid points the two control variate modifications both give more accurate pricing results than the na\"ive algorithm.
+In fact, with the same computational time, the control variate modifications also give more accuracy than the na\"ive algorithm.
+This is obvious in Figure \ref{fig:berm}.
+
+
+
+\begin{figure}[!t]
+\begin{center}
+\begin{tabular}{rrrrrrr}
+\toprule
+{} &      BSCV &           &  Bermudan &           &     expCV &           \\
+{$m$} &   CPU (s) & log error &   CPU (s) & log error &   CPU (s) & log error \\
+\midrule
+100  &  0.001888 & -2.656520 &  0.001125 & -1.928496 &  0.002173 & -1.972770 \\
+200  &  0.003415 & -3.380402 &  0.001569 & -2.548871 &  0.002956 & -2.846451 \\
+400  &  0.005393 & -3.981319 &  0.002921 & -3.151388 &  0.005494 & -3.792331 \\
+800  &  0.009425 & -4.651855 &  0.006419 & -3.889831 &  0.012747 & -4.842674 \\
+1600 &  0.020544 & -5.353463 &  0.015812 & -4.478109 &  0.019162 & -5.547746 \\
+3200 &  0.059600 & -6.315952 &  0.051682 & -5.048506 &  0.056450 & -6.448490 \\
+6400 &  0.243433 & -6.890989 &  0.221945 & -5.604359 &  0.237604 & -7.224185 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\caption{
+Efficiency and Accuracy Comparison of the Convolution Based Bermudan Options Pricing Algorithm and Its Control Variate Modifications.
+``Bermudan'' is the na\"ive algorithm,
+``BSCV'' its modification with the Black-Scholes control,
+and ``expCV'' is the modification with (\ref{eq:CVem}) as the control variate.
+``CPU (s)'' is the computational time in seconds,
+and ``log error'' is the pricing error taking common logarithm.
+}\label{tab:berm}
+\end{figure}
+
+
+
+\begin{figure}[!t]
+\begin{center}
+    \parbox[t]{0.8\textwidth}{
+        \centerline{\epsfig{figure=eps/conv.eps, width=0.8\textwidth}}
+    }\hfill
+\end{center}
+\caption{
+Efficiency and Accuracy Comparison of the Convolution Based Bermudan Options Pricing Algorithm and Its Control Variate Modifications.
+}\label{fig:berm}
+\end{figure}
+
+
+
+\begin{figure}[!t]
+\begin{center}
+    \parbox[t]{0.8\textwidth}{
+        \centerline{\epsfig{figure=eps/convn.eps, width=0.8\textwidth}}
+    }\hfill
+\end{center}
+\caption{
+Accuracy Comparison of the Convolution Based Bermudan Options Pricing Algorithm and Its Control Variate Modifications.
+``num'' is the number of grid points.
+}\label{fig:bermn}
+\end{figure}
+
+
+
+We get a similar numerical results for Asian and discrete barrier options.
+To examine the barrier options pricing results, consider a discrete up and out call option with strike price $K = 120$, barrier $H=130$ and maturity $T=1$,
+whose underly asset has initial price $S_0 = 100$ and volatility $\sigma = 0.3$.
+The risk-free interest rate is assumed to be a constant $r = 0.1$.
+Assumed that there are 12 uniform observation points where the option can be knocked out.
+The benchmark is 0.176355450733, obtained with number of partitions $m=102400$.
+For Asian options pricing algorithms examination, we use the same numerical settings $S_0 = 100$, $K = 120$, $T=1$, $\sigma = 0.3$, $r = 0.1$.
+There 13 uniform time points where the underlying asset price is observed for average evaluation, including $t=0$ and $t=T$.
+The numerical results are shown in Figures \ref{tab:barrier}, \ref{fig:conv_barrier}, \ref{fig:convn_barrier}, \ref{tab:conv_asian}, \ref{fig:conv_asian} and \ref{fig:convn_asian}.
+The ``UOcall'' in Figures \ref{tab:barrier}, \ref{fig:conv_barrier} and \ref{fig:convn_barrier}
+refers to the na\"ive convolution based pricing algorithm for discrete up and out call options,
+and ``UOcallCV'' its control variate modification.
+In Figures \ref{tab:conv_asian}, \ref{fig:conv_asian} and \ref{fig:convn_asian},
+``Benh'' is Benhamou's algorithm, and ``BenhCV'' its control variate modification.
+For discrete barrier option, we use the scaled normal density functions (\ref{eq:scaledBellShape}) as the CV, as described in Section \ref{sec:findingCVforBarrier}.
+For Asian option, we use normal density functions (\ref{eq:fZCV}).
+
+
+
+
+Same as in the Bermudan pricing, in both Asian and barrier options pricing, given the same number of partitions,
+the control variate modifications are more time consuming algorithms because of the extra time spent on control variate evaluations,
+but the modified algorithms also get much more accuracy out of the control variates.
+Overall, the control variate evaluation is a worth-taking cost,
+which can be seen in the graphs of pricing error against computational time in Figures \ref{fig:conv_barrier} and \ref{fig:conv_asian}.
+
+
+
+\begin{figure}[!t]
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+{} &    UOcall &           &  UOcallCV &           \\
+{$m$} &   CPU (s) & log error &   CPU (s) & log error \\
+\midrule
+200   &  0.001761 & -1.282222 &  0.007278 & -1.471718 \\
+400   &  0.002679 & -1.588148 &  0.009405 & -1.762492 \\
+800   &  0.005815 & -1.891260 &  0.013437 & -2.057356 \\
+1600  &  0.014535 & -2.185156 &  0.025336 & -2.345303 \\
+3200  &  0.049247 & -2.489426 &  0.063436 & -2.645831 \\
+6400  &  0.203671 & -2.781629 &  0.217144 & -2.932702 \\
+12800 &  0.642218 & -3.064788 &  0.696188 & -3.207904 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\caption{
+Comparison of Discrete Barrier Options Pricing Algorithms
+}\label{tab:barrier}
+\end{figure}
+
+
+
+\begin{figure}[!t]
+\begin{center}
+    \parbox[t]{0.8\textwidth}{
+        \centerline{\epsfig{figure=eps/conv_barrier.eps, width=0.8\textwidth}}
+    }\hfill
+\end{center}
+\caption{
+Efficiency and Accuracy Comparison of Discrete Barrier Options Pricing Algorithms
+}\label{fig:conv_barrier}
+\end{figure}
+
+
+
+\begin{figure}[!t]
+\begin{center}
+    \parbox[t]{0.8\textwidth}{
+        \centerline{\epsfig{figure=eps/convn_barrier.eps, width=0.8\textwidth}}
+    }\hfill
+\end{center}
+\caption{
+Accuracy Comparison of Discrete Barrier Options Pricing Algorithms
+}\label{fig:convn_barrier}
+\end{figure}
+
+
+
+
+
+\begin{figure}[!t]
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+{} &      Benh &           &    BenhCV &           \\
+{} &   CPU (s) & log error &   CPU (s) & log error \\
+\midrule
+200   &  0.002641 & -1.605930 &  0.010837 & -2.365654 \\
+400   &  0.003277 & -2.125959 &  0.014881 & -2.953226 \\
+800   &  0.005955 & -2.776188 &  0.017535 & -3.555072 \\
+1600  &  0.013135 & -3.394242 &  0.027068 & -4.157442 \\
+3200  &  0.048506 & -3.963035 &  0.064932 & -4.761088 \\
+6400  &  0.203419 & -4.582184 &  0.236476 & -5.370957 \\
+12800 &  0.676367 & -5.175409 &  0.789486 & -6.006516 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\caption{
+Comparison of Asian Options Pricing Algorithms
+}\label{tab:conv_asian}
+\end{figure}
+
+\begin{figure}[!t]
+\begin{center}
+    \parbox[t]{0.8\textwidth}{
+        \centerline{\epsfig{figure=eps/conv_asian.eps, width=0.8\textwidth}}
+    }\hfill
+\end{center}
+\caption{
+Efficiency and Accuracy Comparison of Asian Options Pricing Algorithms
+}\label{fig:conv_asian}
+\end{figure}
+
+\begin{figure}[!t]
+\begin{center}
+    \parbox[t]{0.8\textwidth}{
+        \centerline{\epsfig{figure=eps/convn_aisan.eps, width=0.8\textwidth}}
+    }\hfill
+\end{center}
+\caption{
+Accuracy Comparison of Asian Options Pricing Algorithms
+}\label{fig:convn_asian}
+\end{figure}
+
+
+
+
+
+
+\section{Pricing American Puts with Binomial Tree}
+\label{Sec:AmePut}
+
+\subsection{Binomial Options Pricing Model}
+The argument introduced in Section \ref{sec:martingale} for derivatives pricing is a continuous time argument,
+and at any time in the future, the underlying asset price has infinitely many possible states.
+There is also the binomial options pricing model which starts with a discrete time argument,
+and at any time there can only be finitely many possible states for the price of the underlying asset.
+The binomial options pricing model is easy to understand and is reasonably efficient as a numerical pricing algorithm, that is why it is popular in practice.
+
+
+
+The argument of the binomial options pricing model starts with a two period model where the underlying asset has price $S_0$ at time $t_0$.
+At time $t_1$, it is assumed that the only two possible states of the underlying asset price are $S_0 u$ and $S_0 d$ for some constants $u>1$ and $d<1$.
+Assume that at time $t_1$ the derivative to be priced pays off $X_u$ if the underlying asset price goes up to $S_0u$,
+and $X_d$ if it goes down to $S_0 d$.
+Let $R$ be the time $t_1$ value of one unit of the money market account.
+Consider the portfolio consisting of $B$ dollars cash and $h$ shares of the underlying asset initially.
+The initial value is clearly $B + hS_0$.
+At time $t_1$, the portfolio has value $BR + hS_0 u$ if the underlying asset price goes up, and $BR + hS_0 d$ if it goes down.
+If we want the portfolio to replicate the derivative, we have to have
+\begin{eqnarray*}
+\begin{cases}
+BR + hS_0 u = X_u\\
+BR + hS_0 d = X_d
+\end{cases}.
+\end{eqnarray*}
+This idea of replicating (the payoff of) a derivative is similar to the argument in Section \ref{sec:martingale}.
+The only difference is that now we only have two period $t_0$ and $t_1$, and $t_1$ is the maturity of the derivative to be priced.
+Once the portfolio is set up at $t_0$, there is no chance to change it.
+Thus we do not bother setting up a self-financing strategy.
+
+
+
+
+In matrix form, one can write
+$$
+\begin{pmatrix}
+R & S_0 u\\
+R & S_0 d\\
+\end{pmatrix}
+\begin{pmatrix}
+B\\
+h
+\end{pmatrix}
+ =
+\begin{pmatrix}
+X_u\\
+X_d
+\end{pmatrix},
+$$
+or equivalently,
+$$
+\begin{pmatrix}
+B\\
+h
+\end{pmatrix}
+ =
+\begin{pmatrix}
+R & S_0 u\\
+R & S_0 d\\
+\end{pmatrix}^{-1}
+\begin{pmatrix}
+X_u\\
+X_d
+\end{pmatrix}
+=
+-\frac{1}{RS_0 (u-d)}
+\begin{pmatrix}
+S_0 d & -S_0 u\\
+-R & R\\
+\end{pmatrix}
+\begin{pmatrix}
+X_u\\
+X_d
+\end{pmatrix}
+.
+$$
+This is the holding vector of the portfolio that replicates the derivative.
+The agent who sets up a portfolio with this holding vector will have the same payoff as if he or she holds the derivative.
+By the no-arbitrage principle, this portfolio should have the same initial value as the derivative.
+The initial value of the portfolio is
+\begin{eqnarray*}
+B+hS_0 &=&
+\begin{pmatrix}
+1 & S_0
+\end{pmatrix}
+\begin{pmatrix}
+B\\
+h
+\end{pmatrix}
+=
+-\frac{1}{RS_0 (u-d)}
+\begin{pmatrix}
+1 & S_0
+\end{pmatrix}
+\begin{pmatrix}
+S_0 d & -S_0 u\\
+-R & R\\
+\end{pmatrix}
+\begin{pmatrix}
+X_u\\
+X_d
+\end{pmatrix}\\
+&=&
+-\frac{1}{RS_0 (u-d)}
+\begin{pmatrix}
+S_0(d-R) & S_0(R-u)
+\end{pmatrix}
+\begin{pmatrix}
+X_u\\
+X_d
+\end{pmatrix}\\
+&=& \frac1R\left[ \left(\frac{R-d}{u-d}\right) X_u + \left(\frac{u-R}{u-d}\right) X_d \right].
+\end{eqnarray*}
+Thus we conclude that the fair value, or the no-arbitrage price, of the derivative at $t_0$ is
+\begin{eqnarray}
+V_0 = \frac1R\left[ \left(\frac{R-d}{u-d}\right) X_u + \left(\frac{u-R}{u-d}\right) X_d \right].\label{eq:universal_pricing_formula_discrete}
+\end{eqnarray}
+
+
+
+
+The above is the discrete version of the pricing formula (\ref{eq:universal_pricing_formula}) in Section \ref{sec:martingale}.
+The two coefficients
+\begin{eqnarray}
+p = \left(\frac{R-d}{u-d}\right), \qquad q = \left(\frac{u-R}{u-d}\right)\label{eq:risk_neutral prob_discrete}
+\end{eqnarray}
+sum to one.
+When they are both positive, that is when $d<R<u$, this pair is a discrete probability measure.
+It is the risk neutral probability measure in this oversimplified two period discrete world.
+$1/R$ is the discount factor.
+The fair value of the derivative is the discounted expected value of the payoff under the risk neutral probability,
+just like the continuous version pricing formula (\ref{eq:universal_pricing_formula}).
+
+
+
+In reality, time is continuous, the value of an asset can change anytime,
+and there are infinitely many possible states of an asset price at any specific time in the future.
+In a binomial options pricing model, this is approximated by adding more time steps and more possible states of the underlying asset price.
+One well-known specification by \citet{cox1979option} is as follows.
+Let $r$ be the constant risk free interest rate, and $e^{rt}$ the time $t$ value of one unit of money market account.
+Say we want to price a derivative with maturity $T$, and we have $n$ time steps from time $t=0$ to $t=T$.
+Denote $\Delta t = T/n$.
+Let
+\begin{eqnarray}
+u = \exp(\sigma \sqrt{\Delta t}), \qquad d = 1/u\label{eq:udCRR}
+\end{eqnarray}
+for some constant $\sigma >0$.
+At time $t=\Delta t$, one unit of money market account has value $e^{r\Delta t}$,
+and the underlying asset price can either go up to $S_0 u = S_0 \exp(\sigma \sqrt{\Delta t})$ or go down to $S_0 d = S_0 \exp(-\sigma \sqrt{\Delta t})$.
+These two possible states are the two tree nodes at $t=\Delta t$.
+At each node, going one time step further, the underlying asset price can again either go up or down, giving us tree possible states, or nodes, at $t = 2\Delta t$.
+They are $S_0 u^2$, $S_0$, and $S_0 d^2$.
+In general, at $t = j\Delta t$, there are $j+1$ nodes $S_0 u^j, S_0 u^{j-2}, S_0 u^{j-4}, \ldots, S_0 d^{j}$.
+At each node at each time step, by (\ref{eq:risk_neutral prob_discrete}), the underlying asset price goes up and down with probabilities
+$$
+p = \left(\frac{R-d}{u-d}\right) = \frac{e^{r\Delta t} - e^{-\sqrt{\sigma \Delta t}}}{e^{\sqrt{\sigma \Delta t}} - e^{-\sqrt{\sigma \Delta t}}}, \qquad
+q = \left(\frac{u-R}{u-d}\right) = \frac{e^{\sqrt{\sigma \Delta t}} - e^{r\Delta t}}{e^{\sqrt{\sigma \Delta t}} - e^{-\sqrt{\sigma \Delta t}}},
+$$
+respectively in the risk neutral world.
+By (\ref{eq:universal_pricing_formula_discrete}),
+the derivative price at a node at time $j\Delta t$ is the discounted weighted sum of the two following nodes at time $(j+1)\Delta t$ with weights $p$, $q$.
+Thus, to price a derivative, one first set up the payoff at time $T = n\Delta t$.
+Then (\ref{eq:universal_pricing_formula_discrete}) can be used to find the fair price of the derivative at time $(n-1)\Delta t$.
+Having the price of the derivative at time $(n-1)\Delta t$,
+(\ref{eq:universal_pricing_formula_discrete}) can be applied again to find the derivative price at time $(n-2)\Delta t$.
+This procedure is called backward induction.
+It can be used repeatedly and one obtains the derivative price backward in time until the time zero value of the derivative is found.
+This option pricing algorithm is known as the Cox-Ross-Rubinstein tree, or the CRR tree for short, in honor of the researchers who developed this algorithm.
+
+
+The CRR tree pricing algorithm for a vanilla call option is shown in Figure \ref{algo:CRR}.
+The risk neutral probability is set up in line 4 and 5, and the payoff is set up in line 6.
+Line 8 in the for loop is the backward induction step that evaluates the option values at the $(i-1)$th time step as a vector,
+given the option value vector at the $i$th time step.
+At time step $i$, there are $i+1$ possible states of the underlying asset value.
+Thus the option value vector is $i+1$ dimensional, each element used to keep the put value for a different state.
+At time step 0, there is only one state and therefore one option value, that is the initial fair price of the put returned in line 10.
+
+
+
+It can be shown that as $n\rightarrow \infty$, the derivative price obtained by the CRR tree algorithm converges to the fair price evaluated under the Black-Scholes model
+with the volatility of the underlying asset equal to $\sigma$.
+Roughly speaking, at each tree node the underlying asset price goes up or down according to a fixed (risk-neutral) probability.
+The log return at time $T = n\Delta t$ is therefore binomial distributed with $n+1$ possible states.
+As $n\rightarrow \infty$, the central limit theorem guarantees that this binomial distribution converges to the same normal distribution as in the Black-Scholes model.
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+%\line(1,0){240}
+\begin{algorithmic}[1]
+    \STATE \textbf{input}: $S_0, K, r, s, T, n$
+    \STATE $u \leftarrow e^{s\sqrt{T/n}}$
+    \STATE $d \leftarrow 1/u$
+    \STATE $p \leftarrow \frac{e^{rT/n} - d}{u-d}$
+    \STATE $q \leftarrow 1-p $
+    \STATE $call \leftarrow (\{S_0 u^n, S_0 u^{n-2}, S_0 u^{n-4}, \ldots, S_0 d^{n}\} - K)^+$
+    \FOR{$i=n$ \textbf{downto} $1$ }
+        \STATE $call \leftarrow e^{-rT/n}(p*call[0:i] + q*call[1 : i+1])$
+    \ENDFOR
+    \STATE \textbf{return} $call[0]$
+\end{algorithmic}
+\end{framed}
+\caption{
+CRR Tree Pricing Algorithm for European Call Options
+}
+\label{algo:CRR}
+\end{figure}
+
+
+
+
+\subsection{American Put and Its Pricing}
+Unlike European options which can only be exercised at the maturity,
+American options are options that can be exercised anytime before its maturity.
+Consider a put option that gives its holder the right to sell the underlying asset at the strike price $K$.
+Denote by $S_t$ the price of the underlying asset at time $t$.
+If this put option is exercised at time $\tau$, the holder gets payoff $(K-S_{\tau})^+$.
+Discounted, the present value of the payoff at time zero is $e^{-r\tau}(K-S_{\tau})^+$,
+and therefore by (\ref{eq:universal_pricing_formula})
+the fair value of this option at time zero would be the expectation under the risk neutral probability, that is $\tilde E[e^{-r\tau}(K-S_{\tau})^+]$.
+This is derived under the assumption that this option would be exercised at $\tau$.
+A rational option holder would choose the best time $\tau$ to exercise the option
+the time that maximizes the option value based on all currently available information.
+Thus the fair price of an American put is
+\begin{eqnarray}
+\max_{\tau \in \mathcal T_{[0, T]}} \tilde E[e^{-r\tau}(K-S_{\tau})^+],\label{eq:AmericanPut}
+\end{eqnarray}
+where $\mathcal T_{[0, T]}$ is the set of all stopping times in $[0, T]$.
+Stopping time is a kind of random time whose definition involves advanced concepts in probability theory, which is beyond the scope of this thesis,
+but intuitively, it just means whether or not the random time has already happened only depends on all currently available information.
+
+
+
+The fair value of an American put can also be determined by the CRR tree pricing algorithm,
+and the same as European option pricing, when the number of time steps goes to infinity,
+the pricing result given by the CRR tree converges to the theoretical fair price (\ref{eq:AmericanPut}) under the Black-Scholes model.
+The only difference in the algorithm is that for American options pricing,
+after each backward induction step one should check the option value for all current possible states and update it if necessary.
+If the option value is lower than if it is exercised, a rational investor would decide to exercise the option right away.
+Specifically, let $P$ be the put value given by the backward induction for some possible state at some time step,
+and $S$ the underlying asset value at the same time at the same state.
+If the option is exercised and its holder sells the underlying asset at the strike price $K$ at this time, the payoff is the price difference $(K - S)$.
+The CRR tree algorithm considers two scenarios.
+Either keep the option with value $P$ or exercise it to get the payoff $(K - S)$.
+The algorithm takes whichever is greater to be the updated put value for the state at that time.
+
+
+
+
+The CRR tree pricing algorithm for American puts is shown in Figure \ref{algo:CRR_American}.
+The risk neutral probability, the terminal option value vector, and the payoff vector are set up in line 4, 5, 6 and 7,
+same as the European options pricing algorithm in Figure \ref{algo:CRR}.
+The backward induction step in line 9 in the loop is also the same,
+but in line 10 the put value is compared to the payoff and updated if too low.
+The comparison is done element by element.
+The syntax of line 10 is similar to the vector operation in many programming languages or scientific libraries, such as the Python package Numpy.
+
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+%\line(1,0){240}
+\begin{algorithmic}[1]
+    \STATE \textbf{input}: $S_0, K, r, s, T, n$
+    \STATE $u \leftarrow e^{s\sqrt{T/n}}$
+    \STATE $d \leftarrow 1/u$
+    \STATE $p \leftarrow \frac{e^{rT/n} - d}{u-d}$
+    \STATE $q \leftarrow 1-p $
+    \STATE $payoff \leftarrow (K - \{S_0 u^n, S_0 u^{n-2}, S_0 u^{n-4}, \ldots, S_0 d^{n}\})^+$
+    \STATE $put \leftarrow payoff$
+    \FOR{$i=n$ \textbf{downto} $1$ }
+        \STATE $put \leftarrow e^{-rT/n}(p*put[0:i] + q*put[1 : i+1])$
+        \STATE $put \leftarrow \max(put, payoff)$
+    \ENDFOR
+    \STATE \textbf{return} $put[0]$
+\end{algorithmic}
+\end{framed}
+\caption{
+CRR Tree Pricing Algorithm for American Put Options
+}
+\label{algo:CRR_American}
+\end{figure}
+
+
+
+
+\subsection{Modified Algorithms with Control Variates}
+
+
+A numerical pricing algorithm like Figure \ref{algo:CRR} or its improvement is not necessary in practice,
+since the vanilla options have closed form pricing formulas under the Black-Scholes model.
+Its existence in the literature only serves educational purposes,
+in order to demonstrate how the binomial options pricing model and the binomial tree pricing algorithm work.
+For this reason, the focus of this section is only on the improvement of the American put pricing algorithm in Figure \ref{algo:CRR_American} with the control variate technique.
+
+
+
+The backward induction step in any binomial tree algorithm is a coarse approximation of the convolution step in the convolution pricing algorithms,
+and it is obviously a linear operation.
+Thus it can be modified by the control variate technique to greatly reduce the numerical error.
+In the American put pricing algorithm in Figure \ref{algo:CRR_American},
+in the $i$th iteration of the loop, before the backward induction step in line 9 the vector $put$ keeps the American put values at time step $i$.
+We need to find a control variate that is reasonably close to the American put value, and that has a closed form result when the convolution step is applied.
+We use the fair value of the European put at time step $i$, given by the Black-Scholes formula.
+If there were infinitely many time steps between time $t_i$ and $t_{i-1}$,
+repeated backward induction will turn the European put value at time $t_i$ to its value at time $t_{i-1}$.
+This is because the result of a CRR tree pricing algorithm for vanilla options converges to the fair price under the Black-Scholes model.
+Thus the result given by the convolution step comes in closed form and is given by the Black-Scholes put value at time $t_{i-1}$.
+
+
+
+To apply the control variate technique to the standard CRR tree algorithm in Figure \ref{algo:CRR_American},
+we only modify the backward induction step in line 9, because it is the only linear operator (on the $put$ vector).
+The early exercise checking step in line 10 is not always linear.
+Depending on the values kept in it, the $put$ vector can be partially replaced by the $payoff$ vector in this step.
+In the modified algorithm,
+before sending the $put$ vector to the backward induction at time step $i$,
+it is first subtracted by a vector that keeps the Black-Scholes put prices at time step $i$.
+The backward induction is then applied to the difference.
+The resulting vector is added by a vector of the Black-Scholes put prices at time step $i-1$ as the new $put$ vector to be checked for exercise.
+The algorithm is shown in Figure \ref{algo:CRR_CV}.
+
+
+
+
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+%\line(1,0){240}
+\begin{algorithmic}[1]
+    \STATE \textbf{input}: $S_0, K, r, s, T, n$
+    \STATE $u \leftarrow e^{s\sqrt{T/n}}$
+    \STATE $d \leftarrow 1/u$
+    \STATE $p \leftarrow \frac{e^{rT/n} - d}{u-d}$
+    \STATE $q \leftarrow 1-p $
+    \STATE $payoff \leftarrow (K - \{S_0 u^n, S_0 u^{n-2}, S_0 u^{n-4}, \ldots, S_0 d^{n}\})^+$
+    \STATE $put \leftarrow payoff$
+%    \FOR{$i=n$ \textbf{downto} $1$ }
+%        \STATE $CV_i \leftarrow \text{vector of the Black-Scholes put values at time step $i$}$
+%    \ENDFOR
+    \FOR{$i=n$ \textbf{downto} $1$ }
+        \STATE $put_{diff} \leftarrow put - CV^i$
+        \STATE $put_{diff} \leftarrow e^{-rT/n}(p*put_{diff}[0:i] + q*put_{diff}[1 : i+1])$
+        \STATE $put \leftarrow put_{diff} + CV^{i-1}$
+        \STATE $put \leftarrow \max(put, payoff)$
+    \ENDFOR
+    \STATE \textbf{return} $put[0]$
+\end{algorithmic}
+\end{framed}
+\caption{
+Modified American Put Pricing Algorithm with Control Variate.
+$CV_i$ is a vector that keeps the Black-Scholes put values at time step $i$.
+}
+\label{algo:CRR_CV}
+\end{figure}
+
+
+
+In comparison with the original CRR tree algorithm in Figure \ref{algo:CRR_American}, its CV modification in Figure \ref{algo:CRR_CV} yields more accurate pricing results.
+The backward induction step in line 9 in Figure \ref{algo:CRR_American} is replaced by line 9, 10, and 11 in Figure \ref{algo:CRR_CV}.
+When we choose the Black-Scholes put prices as the control variate and subtract it from the $put$ vector,
+the result (saved in the $put_{diff}$ vector) is known as the the early exercise premium.
+Financially it means the premium the option holder pays for the right to exercise the option prior to the maturity.
+Also, the financial interpretation of the identity $put = put_{diff} + CV$ is
+$$
+\text{American option price} = \text{early exercise premium} + \text{European option price},
+$$
+except, of course, due to the accumulated error,
+the early exercise premium kept in the $put_{diff}$ vector is not the theoretical true value but simply a numerical approximation.
+In line 10 in Figure \ref{algo:CRR_American}, only the early exercise premium is sent to the backward induction step but not the European option price.
+The backward induction step is a coarse approximation of the convolution step in the convolution pricing algorithm,
+and it yields significant numerical errors.
+Sending the entire American option price to such an operator would yield greater numerical error than sending the early exercise premium only.
+Since the European option price in line 11 is given by the Black-Scholes formula, its value is exact.
+
+
+
+
+The algorithm in Figure \ref{algo:CRR_CV} is however very inefficient, mainly because the Black-Scholes formula is evaluated at every node in the tree.
+In the original CRR tree pricing algorithm in Figure \ref{algo:CRR_American},
+at each node we take the discounted expected value of the put values in the previous time step (see line 9),
+which only consists of very cheap arithmetic operations.
+In contrast, evaluating the Black-Scholes formula requires taking logarithm, square root, exponential functions,
+and two special function evaluations for the cumulated distribution function of the standard normal distribution.
+Those are computationally much more expensive than backward induction.
+
+
+
+It is possible to obtain an efficient modified algorithm without loosing the accuracy we get from the control variate technique.
+First let us take another look at the original CRR tree pricing algorithm in Figure \ref{algo:CRR_American}.
+In each loop iteration, the $put$ vector is sent to the backward induction step in line 9,
+and the result is then compared with the payoff function in line 10
+to determine if some of the option values kept in the $put$ vector are too low and need to be replaced by the payoff.
+At $t = j\Delta t$, $put$ is a $j+1$ dimensional vector that keeps put values corresponding to the underlying asset prices
+$S_0 u^j, S_0 u^{j-2}, S_0 u^{j-4}, \ldots, S_0 d^{j}$.
+In general, the underlying asset price is in the form $S_0 u^{j-2i}$.
+The greater $i$ is, the smaller the underlying asset price is, and the more likely the corresponding put value is too low and will be replaced by the payoff.
+The smallest underlying asset price $S_0 u^{j-2i}$ whose corresponding put value is replaced by the payoff is known as the early exercise boundary.
+It is a function of time.
+Having the concept of early exercise boundary, one can achieve the same thing line 10 in Figure \ref{algo:CRR_American} does another way.
+One just needs to locate the early exercise boundary and replaces all the put values with corresponding underlying asset price lower than the boundary by the payoff.
+Line 12 in the modified algorithm in Figure \ref{algo:CRR_CV} can be done in the same manner.
+The modified algorithm evaluates the Black-Scholes formula at all nodes just to locate the early exercise boundary, that is why it is so inefficient.
+To speed up the algorithm, we only evaluate the Black-Scholes formula at the nodes that are close to the early exercise boundary,
+only for the purpose of locating the boundary.
+
+
+
+If we unwind the loop in Figure \ref{algo:CRR_CV}, the first few iterations would be as follows.
+\begin{eqnarray*}
+/* &&\text{(iteration $i=n$)} \qquad */\\
+put_{diff} &\leftarrow& put - CV^n\\
+put_{diff} &\leftarrow& e^{-rT/n}(p*put_{diff}[0:n] + q*put_{diff}[1 : n+1])\\
+put &\leftarrow& put_{diff} + CV^{n-1}\\
+put &\leftarrow& \max(put, payoff)\\
+/* &&\text{(iteration $i=n-1$)} \qquad */\\
+put_{diff} &\leftarrow& put - CV^{n-1}\\
+put_{diff} &\leftarrow& e^{-rT/n}(p*put_{diff}[0:{n-1}] + q*put_{diff}[1 : n])\\
+put &\leftarrow& put_{diff} + CV^{n-2}\\
+put &\leftarrow& \max(put, payoff)\\
+/* &&\text{(iteration $i=n-2$)} \qquad */\\
+put_{diff} &\leftarrow& put - CV^{n-2}\\
+put_{diff} &\leftarrow& e^{-rT/n}(p*put_{diff}[0:{n-1}] + q*put_{diff}[1 : {n-2}])\\
+put &\leftarrow& put_{diff} + CV^{n-3}\\
+put &\leftarrow& \max(put, payoff)\\
+&&\qquad\vdots
+\end{eqnarray*}
+We can see that before and after the early exercise checking step in iteration $i$, there are two opposite statements
+\begin{eqnarray*}
+put &\leftarrow& put_{diff} + CV^{i-1}\\
+put_{diff} &\leftarrow& put - CV^{i-1}
+\end{eqnarray*}
+each evaluating $i-1$ Black-Scholes formulas for the control variate vector $CV^{i-1}$.
+This is unnecessary waste of computational time.
+To speed up the algorithm, we only deal with the $put_{diff}$ vector after it is evaluated in the first iteration.
+The statement
+$$
+put \leftarrow \max(put, payoff)
+$$
+can be replaced by
+$$
+put - CV^{i-1} \leftarrow \max(put - CV^{i-1}, payoff - CV^{i-1})
+$$
+or equivalently
+$$
+put_{diff} \leftarrow \max(put_{diff}, payoff - CV^{i-1}).
+$$
+The control variate (the Black-Scholes formula) is only evaluated near the early exercise boundary for the comparison of $put_{diff}$ and $payoff - CV^{i-1}$.
+As a result, the procedure becomes
+\begin{eqnarray*}
+put_{diff} &\leftarrow& \vec 0\\
+/* &&\text{(iteration $i=n$)} \qquad */\\
+put_{diff} &\leftarrow& e^{-rT/n}(p*put_{diff}[0:n] + q*put_{diff}[1 : n+1])\\
+put_{diff} &\leftarrow& \max(put_{diff}, payoff - CV^{n-1})\\
+/* &&\text{(iteration $i=n-1$)} \qquad */\\
+put_{diff} &\leftarrow& e^{-rT/n}(p*put_{diff}[0:{n-1}] + q*put_{diff}[1 : n])\\
+put_{diff} &\leftarrow& \max(put_{diff}, payoff - CV^{n-2})\\
+/* &&\text{(iteration $i=n-2$)} \qquad */\\
+put_{diff} &\leftarrow& e^{-rT/n}(p*put_{diff}[0:{n-1}] + q*put_{diff}[1 : {n-2}])\\
+put_{diff} &\leftarrow& \max(put_{diff}, payoff - CV^{n-3})\\
+&&\qquad\vdots
+\end{eqnarray*}
+In the first line, in stead of $put - CV^n$, we assign a zero vector to $put_{diff}$ because of two reasons.
+First, this can be justified since the $put_{diff}$ vector is used to keep the early exercise premium, which is zero at maturity.
+Secondly, $put - CV^n$ still requires $n$ Black-Scholes formula evaluations.
+Setting $put_{diff}$ to zero vector is more efficient.
+Such modified algorithm is shown in Figure \ref{algo:CRR_CV_fast},
+where in line 10 the control variate is only evaluated near the early exercise boundary.
+This can be viewed as a tree of the early exercise premium, instead of the put value.
+
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+%\line(1,0){240}
+\begin{algorithmic}[1]
+    \STATE \textbf{input}: $S_0, K, r, s, T, n$
+    \STATE $u \leftarrow e^{s\sqrt{T/n}}$
+    \STATE $d \leftarrow 1/u$
+    \STATE $p \leftarrow \frac{e^{rT/n} - d}{u-d}$
+    \STATE $q \leftarrow 1-p $
+    \STATE $payoff \leftarrow (K - \{S_0 u^n, S_0 u^{n-2}, S_0 u^{n-4}, \ldots, S_0 d^{n}\})^+$
+    \STATE $put_{diff} \leftarrow \text{$n$ dimensional zero vector}$
+    \FOR{$i=n$ \textbf{downto} $1$ }
+        \STATE $put_{diff} \leftarrow e^{-rT/n}(p*put_{diff}[0:{n-1}] + q*put_{diff}[1 : {n-2}])$
+        \STATE $put_{diff} \leftarrow \max(put_{diff}, payoff - CV^{i-1})$
+    \ENDFOR
+    \STATE \textbf{return} $(put_{diff}[0] + \text{Black-Scholes price at 0})$
+\end{algorithmic}
+\end{framed}
+\caption{
+Efficient Modification of the American Put Pricing Algorithm with Control Variate.
+$CV_i$ is a vector that keeps the Black-Scholes put values at time step $i$.
+}
+\label{algo:CRR_CV_fast}
+\end{figure}
+
+
+Only the put values corresponding to underlying asset prices that are greater than the early exercise boundary need to be evaluated.
+Below the early exercise boundary, the corresponding put values at all nodes are replaced by the payoff.
+Since the early exercise boundary is continuous,
+every time the algorithm goes one step backward, to locate the boundary
+we just need to evaluate $payoff - CV^{i-1}$ (and hence the Black-Scholes formula) at the nodes that are close to the boundary of the previous time step.
+In a way, we find the early exercise boundary recursively.
+The initial value of this recursion is the early exercise boundary at maturity, which is $S=K$.
+
+
+
+
+\subsection{Hull and White's Algorithm}
+
+
+
+There is another American put pricing algorithm proposed by \citet{hull1988use} which is based on binomial tree and the control variate technique,
+but the framework is different from ours.
+While both Hull and White and our algorithms use the Black-Scholes formula as the control variate,
+in our algorithm a different control variate is applied in every time step.
+Overall $n$ control variates are used, $n$ the number of time steps.
+In Hull and White's algorithm, only one CV is applied to the CRR tree algorithm as a whole.
+In their algorithm, a CRR tree similar to Figure \ref{algo:CRR} is first used to determine the value of the European put with the same set of parameters.
+Say the result is $P_E$.
+Another CRR tree is than used to determine the American put value, just like in Figure \ref{algo:CRR_American}.
+Suppose the result is $P_A$.
+Theoretically, when the number of time steps goes to infinity, $P_E$ converges to the put value evaluated by the Black-Scholes formula,
+and $P_A$ also converges to the theoretical no-arbitrage price (\ref{eq:AmericanPut}).
+Thus $P_A - P_E$ converges to the early exercise premium.
+Denote by $P_{BS}$ the time 0 put value given by the Black-Scholes formula, then
+$$
+P_A - P_E + P_{BS}
+$$
+converges to the American put value.
+The algorithm is shown in Figure \ref{algo:CRR_Hull}.
+Line 8, 9 and 10 is the loop evaluating $P_E$, and the loop in line 12, 13, 14 and 15 evaluates $P_A$.
+
+
+With the same finite number of time steps $n$, if the numerical errors of $P_A$ and $P_E$ are in the same range,
+we find the difference $P_A - P_E$ in the hope that the errors will cancel out.
+This algorithm, and the explanation why it could give more accurate pricing result, can also be found in \citet{hull2006options}.
+
+
+
+
+\begin{figure}[!t]
+\begin{framed}
+%\line(1,0){240}
+\begin{algorithmic}[1]
+    \STATE \textbf{input}: $S_0, K, r, s, T, n$
+    \STATE $u \leftarrow e^{s\sqrt{T/n}}$
+    \STATE $d \leftarrow 1/u$
+    \STATE $p \leftarrow \frac{e^{rT/n} - d}{u-d}$
+    \STATE $q \leftarrow 1-p $
+    \STATE $payoff \leftarrow (K - \{S_0 u^n, S_0 u^{n-2}, S_0 u^{n-4}, \ldots, S_0 d^{n}\})^+$
+    \STATE $put^{(E)} \leftarrow payoff$
+    \FOR{$i=n$ \textbf{downto} $1$ }
+        \STATE $put^{(E)} \leftarrow e^{-rT/n}(p*put^{(E)}[0:i] + q*put^{(E)}[1 : i+1])$
+    \ENDFOR
+    \STATE $put^{(A)} \leftarrow payoff$
+    \FOR{$i=n$ \textbf{downto} $1$ }
+        \STATE $put^{(A)} \leftarrow e^{-rT/n}(p*put^{(A)}[0:i] + q*put^{(A)}[1 : i+1])$
+        \STATE $put^{(A)} \leftarrow \max(put^{(A)}, payoff)$
+    \ENDFOR
+    \STATE \textbf{return} $(put^{(A)}[0] - put^{(E)}[0] + \text{Black-Scholes price at 0})$
+\end{algorithmic}
+\end{framed}
+\caption{
+Hull and White's Pricing Algorithm for American Put Options
+}
+\label{algo:CRR_Hull}
+\end{figure}
+
+
+
+
+
+
+\subsection{Numerical Results}
+
+
+
+For the benchmark consider an American put option with strike price $K=40$ and maturity $T=3$.
+Suppose the underlying asset has initial price $S_0 = 40$ and volatility $\sigma = 0.3$.
+Let the constant risk-free interest rate be $r = 0.1$.
+We run the traditional CRR tree and the numerical results is shown in Figure \ref{tab:CRR}.
+The results suggest that the put option has value 1.237687, which we will use as a benchmark.
+
+
+
+
+\begin{figure}[!t]
+\begin{center}
+\begin{tabular}{rrr}
+\toprule
+%{} &         CRR &           \\
+$n$ &     CPU (s) &    price \\
+\midrule
+100    &    0.008587 &  1.234086 \\
+200    &    0.017313 &  1.235891 \\
+400    &    0.038991 &  1.236748 \\
+800    &    0.096507 &  1.237184 \\
+1600   &    0.266663 &  1.237440 \\
+3200   &    0.833163 &  1.237536 \\
+6400   &    2.604832 &  1.237619 \\
+12800  &    9.203689 &  1.237658 \\
+25600  &   33.772759 &  1.237674 \\
+51200  &  131.556080 &  1.237683 \\
+102400 &  527.379351 &  1.237687 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\caption{
+American Put Pricing Results by the CRR Tree.
+The first column is the number of time steps, the second column is the running time in seconds,
+and the third column is the computed option value.
+}\label{tab:CRR}
+\end{figure}
+
+
+
+
+First we compare the pricing results of the na\"ive control variate modification of the CRR tree algorithm shown in Figure \ref{algo:CRR_CV},
+and efficient modification in Figure \ref{algo:CRR_CV_fast}.
+Recall that the na\"ive modification is inefficient because the Black-Scholes formula is evaluated at every node.
+The efficiency can be enhanced by building a tree of the early exercise boundary which only evaluates the Black-Scholes formula around the early exercise boundary.
+That is the enhanced algorithm in Figure \ref{algo:CRR_CV_fast}.
+In theory the two pricing algorithms should give exactly the same results
+because the efficiency is achieved by saving unnecessary Black-Scholes formula evaluation.
+Figure \ref{tab:CVfastCVslow} shows that this is true.
+While the pricing results are always identical, the computational time is very different.
+When the number of time steps is 800, the enhanced algorithm is more than 100 times faster than the na\"ive modification.
+From now on, by control variate modification we always refer to the enhanced efficient algorithm in Figure \ref{algo:CRR_CV_fast}.
+
+
+
+
+\begin{figure}[!t]
+\begin{center}
+\begin{tabular}{rrrrr}
+\toprule
+{} &       \multicolumn{2}{c}{Efficient CV}           &     \multicolumn{2}{c}{Na\"ive CV}     \\
+{$n$} &   CPU (s) &    result &    CPU (s) &    result \\
+\midrule
+100 &  0.027450 &  1.235274 &   0.639714 &  1.235274 \\
+200 &  0.054531 &  1.236470 &   2.508056 &  1.236470 \\
+400 &  0.109282 &  1.237030 &   9.942845 &  1.237030 \\
+800 &  0.218897 &  1.237324 &  39.198139 &  1.237324 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\caption{
+Comparison of the Na\"ive and the Efficient Control Variate Modification of a CRR Tree.
+This is a comparison of the algorithms in Figures \ref{algo:CRR_CV} and \ref{algo:CRR_CV_fast}.
+The two algorithms gives the same pricing results, but with very different efficiency.
+$n$ is the number of time steps, CPU(s) the running time in seconds, the results the computed option value.
+}\label{tab:CVfastCVslow}
+\end{figure}
+
+
+
+
+Next we compare the pricing results of the traditional CRR tree, its control variate modification, and Hull and While's algorithm.
+The computational times and the absolute errors are shown in Figure \ref{tab:Tree} for different numbers of time steps.
+The pricing results by Hull and White's algorithm are less accurate for small $n$, but for $n>400$, the accuracy is always better than the CRR tree.
+Given the same number of time steps, the control variate modification always gives better pricing results than both the CRR tree and Hull and White's algorithm.
+The only exception is when $n = 3200$ Hull and White's algorithm gives a bit more accuracy than the control variate modification.
+This is in fact an example of the instability of Hull and White's algorithm, which will be discussed later.
+
+
+
+
+The running times listed in Figure \ref{tab:Tree} shows that
+for small $n$ the control variate modification is slower than both the CRR tree and Hull and White's algorithm.
+This is because the CRR tree and Hull and White's algorithm only perform the backward induction step at each node,
+which is a much computationally cheaper operation than the Black-Scholes formula evaluation needed in our control variate modification.
+This difference in speed is less significant when $n$ goes large.
+The reason is that in the control variate modification the Black-Scholes formula is only evaluated around the early exercise boundary,
+so it is only evaluated $O(n)$ times,
+while in all three algorithms the backward induction at all nodes requires $O(n^2)$ computations.
+When $n>1600$, the CV-enhanced algorithm starts to go faster than Hull and White's.
+When $n>3200$, it gives the best numerical results, in terms of both efficiency and accuracy.
+
+
+
+
+
+\begin{figure}[!t]
+\begin{center}
+\begin{tabular}{rrrrrrr}
+\toprule
+{} &       CRR &            &        CV &           &        HW &            \\
+{$n$} & Abs error &    CPU (s) & Abs error &   CPU (s) & Abs error &    CPU (s) \\
+\midrule
+100   &  0.003601 &   0.007769 &  0.002413 &  0.034853 &  0.004081 &   0.011390 \\
+200   &  0.001796 &   0.016581 &  0.001217 &  0.056165 &  0.002048 &   0.024034 \\
+400   &  0.000939 &   0.036914 &  0.000657 &  0.108347 &  0.000984 &   0.052816 \\
+800   &  0.000503 &   0.093100 &  0.000363 &  0.222466 &  0.000458 &   0.125053 \\
+1600  &  0.000247 &   0.251381 &  0.000178 &  0.465793 &  0.000233 &   0.319739 \\
+3200  &  0.000151 &   0.788970 &  0.000116 &  0.888058 &  0.000089 &   0.915061 \\
+6400  &  0.000068 &   2.589824 &  0.000050 &  1.831340 &  0.000053 &   2.849856 \\
+12800 &  0.000029 &   9.503834 &  0.000021 &  3.861430 &  0.000031 &   9.931539 \\
+25600 &  0.000013 &  34.190770 &  0.000009 &  7.750417 &  0.000017 &  36.476493 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\caption{
+Efficiency and Accuracy Comparison of Various Binominal Tree Algorithms.
+CRR refers to the traditional CRR tree algorithm in Figure \ref{algo:CRR_American},
+HW is Hull and White's algorithm in Figure \ref{algo:CRR_Hull},
+and CV is our control variate modification of the CRR tree, the algorithm in Figure \ref{algo:CRR_CV_fast}.
+}\label{tab:Tree}
+\end{figure}
+
+
+
+
+Figure \ref{fig:Tree} is a picture of the pricing result against the number of time steps.
+As shown in the figure, while the results by all three algorithms converge to the benchmark 1.237687,
+our control variate modification is the most stable.
+This is because our modified algorithm is a tree of the early exercise premiums instead of the put values.
+While the put value has a discontinuity in the first derivative at $S_T = K$,
+the early exercise boundary is just a zero function at maturity.
+In the literature, the discontinuity in the first derivative has been identified as the source of the oscillatory convergence.
+See for example \citet{leisen1998pricing}, \citet{klassen2001simple}.
+\citet{klassen2001simple} suggests using
+$$
+u = e^{\sigma\sqrt{T/n} + \frac{\log(K/S_0)}{n}}, \qquad d = e^{-\sigma\sqrt{T/n} + \frac{\log(K/S_0)}{n}}
+$$
+instead of the CRR specification (\ref{eq:udCRR}),
+and shows that this choice of $u$, $d$ values can eliminate the oscillation of the numerical results.
+With a tree of the early exercise premiums, there is no discontinuity of the first derivative
+and therefore no need to change the CRR specification.
+That is why the convergence of our control variate modification shown in Figure \ref{fig:Tree} seems more stable than other algorithms.
+
+
+
+
+
+
+\begin{figure}[!t]
+\begin{center}
+    \parbox[t]{0.8\textwidth}{
+        \centerline{\epsfig{figure=eps/Tree.eps, width=0.8\textwidth}}
+    }\hfill
+\end{center}
+\caption{
+Pricing Results Against Number of Time Steps
+}\label{fig:Tree}
+\end{figure}
+
+
+
+
+
+
+
+
+%
+%\section{Numerical Results}\label{sec:nresult}
+%
+%
+%The numerical results of the plain and the modified Carr and Madan's algorithms are shown in Figure \ref{fig:CMnum},
+%where the target model is the Heston model.
+%The two modified algorithms use the Black-Scholes model and the model based on the Edgeworth expansion as the control variates, respectively.
+%From Figure \ref{fig:CMnum} we can see that the Edgeworth expansion leads us to a better control.
+%
+%
+%The numerical results of the plain and the modified convolution Bermudan put pricing algorithms are shown in Figure \ref{tab:Berm} and \ref{fig:CONVnum}.
+%The two modified algorithms use the Black-Scholes formula and (\ref{eq:cvem}) as the control variates, respectively.
+%We have seen from Figure \ref{fig:cvBS} and \ref{fig:cvem} that, (\ref{eq:cvem}) behaves more like the value of Bermudan puts.
+%As shown in the table in Figure \ref{tab:Berm}, given the same computational time,
+%using (\ref{eq:cvem}) as a control gives much more accuracy than using the Black-Scholes formula as a control.
+%Given the same number of grid points, the modified algorithms clearly have better accuracy, as shown in Figure \ref{fig:CONVnum},
+%but a modified algorithm is more time-consuming compared to the plain convolution algorithm.
+%This is because in each loop it takes time to prepare the grid functions of the control and the difference,
+%but even that, the time spent is worth it because with a control variate we can get more accuracy with fewer grid points.
+%Indeed, as shown in the table in Figure \ref{tab:Berm}, given the same accuracy level,
+%the modified algorithm with the Black-Scholes formula as a control is about twice as faster as the plain convolution algorithm.
+
+
+
+
+\section{Conclusion}
+In a general framework we extend the CV technique to enhance various numerical option pricing algorithms.
+Unlike in the Monte Carlo simulation where the CV is applied to the algorithm as a whole,
+in our framework CVs can be applied to some steps in the algorithm, which makes the framework more general.
+An algorithm as a whole might not satisfy the conditions under which it can benefit from the use of CVs, but some of its individual parts may.
+As examples we demonstrate how to apply the CV technique to enhance Carr and Madan's algorithm,
+the convolution-based pricing algorithms, and binomial trees.
+Numerical results show that the CV-enhanced algorithms are more efficient and accurate than the original algorithms in all cases considered.
+
+
+
+
+One advantage the general framework inherits from the traditional CV technique is the flexibility of choosing CV.
+Using Carr and Madan's algorithm and the convolution-based Bermudan puts pricing algorithm as examples,
+we show that different choices of CVs can lead to different pricing accuracy.
+By choosing better CVs, it is possible to design more accurate pricing algorithms in this new framework.
+Moreover, in some cases, like the convolution-based pricing algorithms, the target to be approximated by CVs is easy to visualize,
+which makes it easier to find good CVs than the Monte Carlo simulation.
+
+
+
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%
+%
+%
+%
+%
+%
+%Suppose $D<K$.
+%\begin{eqnarray}
+%&& e^{-r(T_2 - T_1)} E\left[C(\text{Black-Scholes put at $T_2$})1_{\{S_{T_2}>D\}} + (K-S_{T_2})1_{\{S_{T_2}\leq D\}} \Big| \mathcal F_{T_1}\right]\nonumber\\
+%&=& C e^{-r(T_2 - T_1)} E\left[ e^{-r(T - T_2)} E\left[(K-S_{T})^+|\mathcal F_{T_2}\right] 1_{\{S_{T_2}>D\}} \Big| \mathcal F_{T_1}\right] \label{eq:CV:BSput}\\
+%&&+ e^{-r(T_2 - T_1)} E\left[(K-S_{T_2})1_{\{S_{T_2}\leq D\}} \Big| \mathcal F_{T_1}\right],  \label{eq:CV:exercise}
+%\end{eqnarray}
+%where (\ref{eq:CV:BSput}) can be written as
+%\begin{eqnarray*}
+%&& C e^{-r(T - T_1)} E\left[ E\left[(K-S_{T})^+ 1_{\{S_{T_2}>D\}} \Big|\mathcal F_{T_2}\right]  \Big| \mathcal F_{T_1}\right]\\
+%&=& C e^{-r(T - T_1)} E\left[ (K-S_{T})^+ 1_{\{S_{T_2}>D\}} \Big| \mathcal F_{T_1}\right],
+%\end{eqnarray*}
+%which is similar to a two-step down-and-out put option and has a closed form formula
+%\begin{eqnarray*}
+%&&C\left(K e^{-r(T - T_1)} N\left( \frac{\log\frac{S_{T_1}}{D} + \left(r - \frac{\sigma^2}{2}\right)(T_2 - T_1)}{\sigma\sqrt{T_2 - T_1}},
+%-\frac{\log\frac{S_{T_1}}{K} + \left(r - \frac{\sigma^2}{2}\right)(T - T_1)}{\sigma\sqrt{T - T_1}},
+%-\sqrt{\frac{T_2 - T_1}{T-T_1}}   \right)\right.\\
+%&&\qquad\left. -S_{T_1}N\left( \frac{\log\frac{S_{T_1}}{D} + \left(r + \frac{\sigma^2}{2}\right)(T_2 - T_1)}{\sigma\sqrt{T_2 - T_1}},
+%-\frac{\log\frac{S_{T_1}}{K} + \left(r + \frac{\sigma^2}{2}\right)(T - T_1)}{\sigma\sqrt{T - T_1}},
+%-\sqrt{\frac{T_2 - T_1}{T-T_1}}   \right)\right),
+%\end{eqnarray*}
+%where $N(x, y, \rho)$ is the two-dimensional standard normal distribution function with correlation $\rho$.
+%Eq.\,(\ref{eq:CV:exercise}) is similar to a vanilla put option with maturity $T_2$.
+%The closed form formula is
+%$$
+%K e^{-r(T_2 - T_1)} N\left( - \frac{\log\frac{S_{T_1}}{D} + \left(r - \frac{\sigma^2}{2}\right)(T_2 - T_1)}{\sigma\sqrt{T_2 - T_1}} \right)
+%-S_{T_1}N\left( - \frac{\log\frac{S_{T_1}}{D} + \left(r + \frac{\sigma^2}{2}\right)(T_2 - T_1)}{\sigma\sqrt{T_2 - T_1}} \right),
+%$$
+%where $N(x)$ is the one-dimensional standard normal distribution function.
+%
+%\pagebreak
+%\section{Numerical Results}
+%\begin{multicols}{2}
+%UO Richardson extrapolation, MAE
+%$$
+%\begin{array}{l|ll}
+%n & \text{error} & \text{CPU} \\
+%\hline
+%200 & 0.0150151 & 0.022\\
+%400 & 0.0147935 & 0.039\\
+%800 & 0.000839207 & 0.08\\
+%1600 & 0.000849827 & 0.16\\
+%3200 & 0.000852532 & 0.3\\
+%6400 & 0.000853829 & 0.581\\
+%12800 & 0.000122063 & 1.212\\
+%25600 & 0.000122009 & 2.376\\
+%51200 & 0.000121992 & 4.731\\
+%102400 & 1.20147e-009 & 9.516\\
+%204800 & 0 & 20.053\\
+%\end{array}
+%$$
+%
+%Bermudan Richardson extrapolation, MAE
+%$$
+%\begin{array}{l|ll}
+%n & \text{error} & \text{CPU} \\
+%\hline
+%200 & 0.010028 & 0.02\\
+%400 & 0.00265791 & 0.037\\
+%800 & 0.00062668 & 0.079\\
+%1600 & 0.00015667 & 0.15\\
+%3200 & 3.91705e-005 & 0.308\\
+%6400 & 0.00257759 & 0.593\\
+%12800 & 2.45152e-006 & 1.235\\
+%25600 & 0.00232802 & 2.425\\
+%51200 & 1.56691e-007 & 4.853\\
+%102400 & 4.19352e-008 & 9.688\\
+%204800 & 0 & 20.398\\
+%\end{array}
+%$$
+%
+%UO MAE using Richardson with $m=10240$ as a benchmark, where the grid points are not adjusted
+%
+%$$
+%\begin{array}{l|ll}
+%n & \text{error} & \text{CPU} \\
+%\hline
+%200 & 0.0168317 & 0.006\\
+%400 & 0.000935918 & 0.013\\
+%800 & 0.0069257 & 0.025\\
+%1600 & 0.00304248 & 0.053\\
+%3200 & 0.0010961 & 0.088\\
+%6400 & 0.000121727 & 0.201\\
+%\end{array}
+%$$
+%
+%UO MAE with adjusted grid using Richardson with $m=10240$ as a benchmark.
+%
+%$$
+%\begin{array}{l|ll}
+%n & \text{error} & \text{CPU} \\
+%\hline
+%200 & 0.0205927 & 0.006\\
+%400 & 0.0102851 & 0.012\\
+%800 & 0.00507752 & 0.032\\
+%1600 & 0.00253768 & 0.064\\
+%3200 & 0.00126844 & 0.092\\
+%6400 & 0.000634018 & 0.207\\
+%\end{array}
+%$$
+%
+%Bermudan MAE using Richardson with $m=10240$ as a benchmark.
+%
+%$$
+%\begin{array}{l|ll}
+%n & \text{error} & \text{CPU} \\
+%\hline
+%200 & 1.00957 & 0.006\\
+%400 & 0.504801 & 0.012\\
+%800 & 0.252404 & 0.024\\
+%1600 & 0.126203 & 0.053\\
+%3200 & 0.0631019 & 0.096\\
+%6400 & 0.031551 & 0.207\\
+%\end{array}
+%$$
+%\end{multicols}
+%
+%
+%\section{Bermudan}
+%
+%
+%   nsBS：BS put as CV
+%   em：pt value and derivative on the left
+%   BS：a multiple of BS put CV
+%   emc：two pts on the left and right
+%
+%
+%
+%
+%
+%
+%
+%\begin{figure}[!h]
+%\begin{center}
+%    \parbox[t]{0.45\textwidth}{
+%        \centerline{\epsfig{figure=eps/BSCV.eps, width=0.45\textwidth}}
+%    }
+%    \parbox[t]{0.45\textwidth}{
+%        \centerline{\epsfig{figure=eps/BSDiff.eps, width=0.45\textwidth}}
+%    }
+%\end{center}
+%\caption{BermCVBS}
+%\label{fig:BermCVBS}
+%\end{figure}
+%
+%
+%
+%\begin{figure}[!h]
+%\begin{center}
+%    \parbox[t]{0.45\textwidth}{
+%        \centerline{\epsfig{figure=eps/emcCV.eps, width=0.45\textwidth}}
+%    }
+%    \parbox[t]{0.45\textwidth}{
+%        \centerline{\epsfig{figure=eps/emcDiff.eps, width=0.45\textwidth}}
+%    }
+%\end{center}
+%\caption{BermCVemc}
+%\label{fig:BermCVemc}
+%\end{figure}
+%
+%
+%
+%
+%$$
+%\begin{array}{l|llll}
+%n & \text{BS err} & \text{BS CPU} & \text{emc err} & \text{emc CPU} \\
+%\hline
+%200 & 0.00160123 & 0.047 & 0.00165544 & 0.029\\
+%400 & 0.000411737 & 0.091 & 0.00032464 & 0.056\\
+%800 & 9.95462e-005 & 0.183 & 9.05748e-005 & 0.106\\
+%1600 & 2.53013e-005 & 0.371 & 2.06212e-005 & 0.213\\
+%3200 & 6.40176e-006 & 0.733 & 4.39801e-006 & 0.43\\
+%6400 & 1.55036e-006 & 1.502 & 1.66559e-006 & 0.885\\
+%12800 & 3.88023e-007 & 2.994 & 6.45726e-007 & 1.766\\
+%25600 & 9.9298e-008 & 6.174 & 1.78323e-007 & 3.637\\
+%\end{array}
+%$$
+%
+
+
+%
+%Fitting line equation of Berm: $y = -0.999988x+2.30515$.
+%
+%Fitting line equation of BermCVnsBS: $y = -1.0485x+1.54004$.
+%
+%Fitting line equation of BermCVem: $y = -1.04381x+0.0222945$.
+%
+%Fitting line equation of BermCVBS: $y = -2.00111x+1.81333$.
+%
+%Fitting line equation of BermCVemc: $y = -1.86495x+1.37219$.
+%
+
+
+\appendix
+
+
+
+
+
+
+\section{Heston Model and Its Characteristic Function}
+\label{appendix:heston}
+Under the Heston stochastic volatility model, the price process $S_t$ of the underlying asset of an option is modeled by
+\begin{eqnarray*}
+\begin{cases}
+dS_t &= r S_tdt + \sqrt{V_t} S_td\tilde W^S_t\\
+dV_t &= \kappa(\theta - V_t) dt + \sigma\sqrt{V_t} d\tilde W^V_t\\
+\end{cases},
+\end{eqnarray*}
+where $r>0$ is the risk-free interest rate,
+$\tilde W^S_t$ and $\tilde W^V_t$ are standard Brownian motions with correlation $d\tilde W^S_td\tilde W^V_t = \rho dt$, $\rho\in(-1, 1)$,
+and the parameters $\kappa>0$, $\theta>0$, $\sigma>0$.
+The characteristic function of the log-return $X_T = \log(S_T/S_0)$ is known in closed form as
+\begin{eqnarray*}
+\phi_T(u) = \tilde E\left[e^{iuX_T}\right] = e^{C(u, T)+D(u, T)V_0},%\label{eq:chfHeston}
+\end{eqnarray*}
+where
+\begin{eqnarray*}
+C(u, \tau) &=& iru\tau + \frac{\kappa \theta  }{\sigma^2} \left( \left(\kappa -i\rho\sigma u - d\right)\tau - 2\log\left[\frac{1-g e^{-d\tau}}{1-g}\right] \right),\\
+D(u, \tau) &=& \frac{ \kappa -i\rho\sigma u - d}{\sigma^2} \left[\frac{1-e^{-d\tau}}{1 - g e^{-d\tau}}\right],\\
+g &=& \frac{ \kappa -i\rho\sigma u - d}{\kappa -i\rho\sigma u + d}~,\\
+d &=& \sqrt{\left(\kappa -i\rho\sigma u \right)^2 + \sigma^2\left(iu+ u^2\right)}.
+\end{eqnarray*}
+This is a different formulation from the characteristic function formula first derived in the appendix of \citet{heston1993closed}.
+\citet{lord2010complex} prove that with this formulation
+taking the principal branch of the the complex logarithm in $C(\tau)$ will always give us the correct characteristic function value.
+
+%
+%
+%
+%As mentioned in Section \ref{sec:find_cumulants},
+%since the characteristic function is of the form $\phi_T(u) = e^{\psi_T(u)}$
+%with the characteristic exponent $\psi_T(u) = C(u, T) + D(u, T)V_0$,
+%to find the first few cumulants $m_1, m_2, m_3, \ldots$ of the Heston model we can use the identity
+%$$
+%\sum_{n=1}^\infty \frac{m_n}{n!}u^n = \psi_T(-i u) = C(-iu, T) + D(-iu, T)V_0.
+%$$
+%One just needs to find the power series of $\psi_T(-i u)$.
+%We find the power series of $C(-iu, T)$ and $D(-iu, T)V_0$ separately and then find the sum.
+%Specifically, we write
+%$$
+%\sum_{n=1}^\infty \frac{m_n}{n!}u^n = \sum_{n=1}^\infty \frac{(c_n + d_nV_0)}{n!}u^n = C(-iu, T) + D(-iu, T)V_0,
+%$$
+%where $c_n$ and $d_n$ are from the coefficients of the power series of $C(-iu, T)$ and $D(-iu, T)$, respectively.
+%Direct computation to expand $D(-iu, T)$ shows that
+%\begin{eqnarray*}
+%d_1 &=& \frac{e^{-\kappa T} - 1}{2\kappa}, \\
+%d_2 &=& \frac{1}{4\kappa^3}\left( p_{20}(\sigma) + 2 e^{-\kappa T}p_{21}(\sigma) -\sigma^2 e^{-2\kappa T}\right), \\
+%d_3 &=& \frac{3}{16\kappa^5}\left( 2 p_{30}(\sigma) + e^{-\kappa T}p_{31}(\sigma) + 2 e^{-2\kappa T}p_{32}(\sigma) + \sigma^3 e^{-3\kappa T} \right), \\
+%d_4 &=& \frac{1}{16\kappa^7}\left( 3p_{40}(\sigma) + 2e^{-\kappa T}p_{41}(\sigma) - 12e^{-2\kappa T}p_{42}(\sigma) - 6e^{-3\kappa T}p_{43}(\sigma) - 3\sigma^4  \right),
+%\end{eqnarray*}
+%where $p_{i, j}$'s are polynomials of $\sigma$ given below.
+%The polynomials in $d_2$ are
+%\begin{eqnarray*}
+%p_{21}(\sigma) &=& (-2 \kappa ^2) + \sigma (2 \kappa  \rho +2 \kappa ^2 \rho  T) + \sigma^2 (-\kappa T), \\
+%p_{20}(\sigma) &=& (4 \kappa ^2) + \sigma (-4 \kappa  \rho ) + \sigma^2.
+%\end{eqnarray*}
+%The polynomials in $d_3$ are
+%\begin{eqnarray*}
+%p_{32}(\sigma) &=& \sigma^2 (4 \kappa ^2) +  \sigma^3 (-6 \kappa  \rho -4 \kappa ^2 \rho  T) +  \sigma^4 (2 \kappa  T+1), \\
+%p_{31}(\sigma) &=& \sigma (-16 \kappa ^3 \rho -16 \kappa ^4 \rho  T) + \sigma^2 (16 \kappa ^2 \rho ^2+8 \kappa ^4 \rho ^2 T^2+16 \kappa ^3 \rho ^2 T+16 \kappa ^3 T)\\
+%&&+~ \sigma^3 (-8 \kappa ^3 \rho  T^2-16 \kappa ^2 \rho  T) + \sigma^4 (2 \kappa ^2 T^2+2 \kappa  T-1), \\
+%p_{30}(\sigma) &=& \sigma (8 \kappa ^3 \rho ) + \sigma^2 (-8 \kappa ^2 \rho ^2-4 \kappa ^2) + \sigma^3 (6 \kappa  \rho ) - \sigma^4,
+%\end{eqnarray*}
+%and in $d_4$
+%\begin{eqnarray*}
+%p_{43}(\sigma) &=& \sigma^4 (6 \kappa ^2) + \sigma^5 (-10 \kappa  \rho -6 \kappa ^2 \rho  T) + \sigma^6 (3 \kappa  T+2),\\
+%p_{42}(\sigma) &=& \sigma^2 (4 \kappa ^4) + \sigma^3 (-24 \kappa ^3 \rho -16 \kappa ^4 \rho  T) + \sigma^4 (24 \kappa ^2 \rho ^2+6 \kappa ^2+8 \kappa ^4 \rho ^2 T^2+24 \kappa ^3 \rho ^2 T+12 \kappa ^3 T)\\
+%&&+~ \sigma^5 (-10 \kappa  \rho -8 \kappa ^3 \rho  T^2-20 \kappa ^2 \rho  T) + \sigma^6 (2 \kappa ^2 T^2+3 \kappa  T+1),\\
+%p_{41}(\sigma) &=& \sigma^2 (-96 \kappa ^4 \rho ^2-48 \kappa ^6 \rho ^2 T^2-96 \kappa ^5 \rho ^2 T-48 \kappa ^5 T)\\
+%&&+~ \sigma^3 (96 \kappa ^3 \rho ^3+16 \kappa ^6 \rho ^3 T^3+48 \kappa ^5 \rho ^3 T^2+96 \kappa ^5 \rho  T^2+96 \kappa ^4 \rho ^3 T+192 \kappa ^4 \rho  T)\\
+%&&+~ \sigma^4 (18 \kappa ^2-24 \kappa ^5 \rho ^2 T^3-96 \kappa ^4 \rho ^2 T^2-36 \kappa ^4 T^2-144 \kappa ^3 \rho ^2 T-36 \kappa ^3 T)\\
+%&&+~ \sigma^5 (-30 \kappa  \rho +12 \kappa ^4 \rho  T^3+48 \kappa ^3 \rho  T^2+42 \kappa ^2 \rho  T)\\
+%&&+~ \sigma^6 (-2 \kappa ^3 T^3-6 \kappa ^2 T^2-3 \kappa  T+6), \\
+%p_{40}(\sigma) &=& \sigma^2 (64 \kappa ^4 \rho ^2+16 \kappa ^4) + \sigma^3 (-64 \kappa ^3 \rho ^3-96 \kappa ^3 \rho ) + \sigma^4 (96 \kappa ^2 \rho ^2+24 \kappa ^2) + \sigma^5 (-40 \kappa  \rho ) + 5\sigma^6.
+%\end{eqnarray*}
+%
+%
+%
+%To find the coefficients $c_n$, we use the fact
+%$$
+%C(\tau) = \int_0^\tau iru + \kappa \theta D(s)\,ds
+%$$
+%from the derivation of the characteristic function.
+%This identity can be found in both \citet{heston1993closed} and \citet{lord2010complex}.
+%
+%
+%
+%
+
+
+%\bibliographystyle{plain}
+\bibliographystyle{chicago}
+\bibliography{GCV_db}
+
+
+
+
+
+
+
+
+\end{document}
